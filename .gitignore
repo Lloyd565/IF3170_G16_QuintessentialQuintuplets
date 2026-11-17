@@ -1,0 +1,43 @@
+# Local datasets and generated outputs; preserve directory placeholders.
+/data/**
+!/data/**/
+!/data/**/.gitkeep
+/output/**
+!/output/**/
+!/output/**/.gitkeep
+
+# Model artifacts outside output/.
+*.pkl
+*.pickle
+*.joblib
+
+# Python caches, environments, packaging, and test artifacts.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Editor, operating-system, and temporary files.
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*.swo
+*~
