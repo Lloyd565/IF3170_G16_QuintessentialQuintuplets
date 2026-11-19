@@ -1,5 +1,4 @@
-"""Public placeholder entry point for Logistic Regression."""
+from .logres import LogisticRegression
+from .model import logisticRegression
 
-from .model import logistic_regression
-
-__all__ = ["logistic_regression"]
+__all__ = ["LogisticRegression", "logisticRegression"]
