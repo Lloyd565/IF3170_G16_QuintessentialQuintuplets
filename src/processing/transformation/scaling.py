@@ -1,6 +1,11 @@
-"""Placeholder for feature scaling within transformation."""
+from sklearn.preprocessing import StandardScaler
 
 
-def scale_features(*args, **kwargs):
-    """Scale features with parameters learned from training data only."""
-    raise NotImplementedError
+
+def fit_scaler(X_train, num_cols):
+    return StandardScaler().fit(X_train[num_cols])
+
+def scale_features(X, scaler, num_cols):
+    hasil = X.copy()
+    hasil[num_cols] = scaler.transform(X[num_cols])
+    return hasil
