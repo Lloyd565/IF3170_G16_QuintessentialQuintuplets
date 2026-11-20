@@ -1,7 +1,7 @@
 # Local datasets and generated outputs; preserve directory placeholders.
-# /data/**
-# !/data/**/
-# !/data/**/.gitkeep
+/data/**
+!/data/**/
+!/data/**/.gitkeep
 /output/**
 !/output/**/
 !/output/**/.gitkeep
