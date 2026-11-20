@@ -4,10 +4,10 @@ Tugas Besar 2 AI: Supervised Learning (IF3170). This project will implement KNN,
 Decision Tree Learning (DTL), Logistic Regression, SVM, and Naive Bayes from
 scratch, with shared preprocessing, evaluation, visualization, and Kaggle workflows.
 
-This repository currently contains architecture and boilerplate only. Algorithm,
-preprocessing, evaluation, visualization, and workflow functions deliberately raise
-`NotImplementedError`. The CLI recognizes planned commands and reports that they
-are not yet implemented, exiting with a nonzero status.
+KNN, Logistic Regression, SVM, cleaning, transformation, and mRMR feature selection
+are implemented. The CLI supports interactive setup, training, and prediction with
+saved preprocessing and models. DTL, Naive Bayes, dimensionality reduction,
+evaluation, and comparison workflows remain unfinished.
 
 ## Repository structure
 
@@ -57,7 +57,7 @@ are not yet implemented, exiting with a nonzero status.
 │   │   └── sklearn_baselines.py        # Separate scikit-learn comparisons
 │   ├── processing/
 │   │   ├── __init__.py
-│   │   ├── pipeline.py                 # Future stage coordination
+│   │   ├── pipeline.py                 # Fit and reuse preprocessing state
 │   │   ├── cleaning/
 │   │   │   ├── __init__.py
 │   │   │   ├── cleaning.py
@@ -82,6 +82,7 @@ are not yet implemented, exiting with a nonzero status.
 │   │       ├── __init__.py
 │   │       └── metrics.py
 │   ├── workflows/
+│   │   ├── cli.py                     # CSV loading and CLI coordination
 │   │   ├── __init__.py
 │   │   ├── train.py
 │   │   ├── evaluate.py
@@ -125,22 +126,45 @@ trackable. Start the notebook with `python -m notebook` from the repository root
 Future notebook code should import functionality from `src/`; ensure the repository
 root is on the kernel's import path instead of copying implementations into cells.
 
-## Planned CLI usage
+## CLI usage
 
 ```bash
 python -m src.main --help
 python -m src.main train --help
+python -m src.main --interactive
+python -m src.main run --model logistic_regression --features 10 --epochs 100
 python -m src.main train --model knn --k 5
 python -m src.main train --model svm --kernel rbf
-python -m src.main evaluate --model knn
-python -m src.main compare --model knn
-python -m src.main predict --model knn --input data/test.csv
+python -m src.main predict --model knn --input data/test.csv --template data/sample_submission.csv
 ```
 
 Model names are `knn`, `dtl`, `logistic_regression`, `svm`, and `naive_bayes`.
-`--k` and `--kernel` are optional training arguments reserved for future
-implementations. Help commands work now; execution commands report an unfinished
-workflow and exit with status 1. No models, scores, or predictions are produced.
+The default is `--model all`; unfinished algorithms are skipped during training.
+Use multiple names after `--model` to select a subset. Running without arguments
+in a terminal opens interactive prompts; `--interactive` explicitly enables them.
+
+`train` reads `data/train.csv` by default, separates `id` and `is_canceled`, and
+reserves a stratified 20% validation split before fitting preprocessing. Cleaning
+and transformation are enabled by default. Use `--features K` for mRMR,
+`--oversample` to balance the training split, and `--validation-size 0` to disable
+the holdout split. Validation predictions are written to `output/validation/`.
+For prepared numeric CSVs, pass `--no-cleaning --no-transformation`.
+
+Model options include `--k`, `--kernel`, `--learning-rate`, `--epochs`,
+`--regularization`, `--regularization-strength`, and `--l1-ratio`. Additional
+per-model overrides can be supplied with `--model-params`, for example
+`--model-params '{"knn":{"k":5},"logistic_regression":{"epochs":200}}'`.
+Use `train --help` to see all options.
+
+Fitted models and `preprocessing.pkl` are saved to `output/models/`. `predict`
+reuses the saved cleaner, transformer, and selected columns; it never fits on
+prediction data. Outputs go to `output/submissions/`, preserving input identifier
+order. `--template` verifies the submission schema and identifier order. Use
+`--prepared` when prediction data already matches models trained outside the CLI.
+`run` performs training followed by prediction on `data/test.csv`; override the
+test path with `--test-input`. Paths are configurable with `--input`, `--model-dir`,
+`--output-dir`, and `--validation-output`; custom column names use `--target` and
+`--id-column`. The `evaluate` and `compare` commands remain unimplemented.
 
 ## Contributor guidelines
 
