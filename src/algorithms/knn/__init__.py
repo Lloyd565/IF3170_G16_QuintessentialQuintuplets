@@ -1,5 +1,5 @@
-"""Public placeholder entry point for K-Nearest Neighbors."""
+"""K-Nearest Neighbors classifier."""
 
-from .model import knn
+from .model import KNN
 
-__all__ = ["knn"]
+__all__ = ["KNN"]
