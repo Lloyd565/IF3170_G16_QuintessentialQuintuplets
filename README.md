@@ -154,7 +154,7 @@ workflow and exit with status 1. No models, scores, or predictions are produced.
   `bonus/` package; each currently provides a `visualize_bonus()` placeholder.
 - Keep preprocessing internals within their stage's folder. Each stage exposes
   one main function through its `__init__.py`: `cleaning()`, `transformation()`,
-  `feature_selection()`, or `dimensionality_reduction()`. Callers should use those
+  `featureSelection()`, or `dimensionality_reduction()`. Callers should use those
   package entry points, for example `from src.processing.cleaning import cleaning`.
   Supporting functions and all placeholder signatures remain open to revision.
 - `processing/pipeline.py` will coordinate cleaning, transformation, feature
