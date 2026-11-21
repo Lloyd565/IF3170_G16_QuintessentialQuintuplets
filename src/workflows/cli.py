@@ -65,7 +65,7 @@ def runTrain(args, modelParameters):
     features, target = features.loc[keep], target.loc[keep]
     features, target, state = runPreprocessing(
         features, target, fit=True, clean=args.cleaning, transform=args.transformation,
-        featureCount=args.features, oversample=args.oversample, randomState=args.randomState,
+        featureCount=args.features, components=args.components, oversample=args.oversample, randomState=args.randomState,
         name="train",
     )
     if validFeatures is not None:
