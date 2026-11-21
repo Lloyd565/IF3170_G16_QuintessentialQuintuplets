@@ -1,6 +1,7 @@
 import pandas as pd
 
 from .cleaning import cleaning
+from .dimensionality_reduction import dimensionality_reduction
 from .feature_selection import featureSelection
 from .transformation import handle_imbalance as handleImbalance, transformation
 
@@ -14,6 +15,7 @@ def runPreprocessing(
     clean=True,
     transform=True,
     featureCount=None,
+    components=None,
     oversample=False,
     randomState=42,
     name="data",
@@ -52,9 +54,18 @@ def runPreprocessing(
             if target is None:
                 raise ValueError("Seleksi fitur membutuhkan label pelatihan.")
             features, _ = featureSelection(features, target, featureCount)
-        state["outputColumns"] = features.columns.tolist()
+        state["selectedColumns"] = features.columns.tolist()
     else:
-        features = features.loc[:, state["outputColumns"]].copy()
+        features = features.loc[:, state.get("selectedColumns", state["outputColumns"])].copy()
+    if fit:
+        state["reducer"] = None
+        if components is not None:
+            features, state["reducer"] = dimensionality_reduction(
+                features, fit=True, nComponents=components,
+            )
+        state["outputColumns"] = features.columns.tolist()
+    elif state.get("reducer") is not None:
+        features, _ = dimensionality_reduction(features, reducer=state["reducer"])
     if fit and oversample:
         if target is None:
             raise ValueError("Oversampling membutuhkan label pelatihan.")

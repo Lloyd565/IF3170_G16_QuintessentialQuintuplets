@@ -1,7 +1,5 @@
 from numbers import Integral, Real
-
 import numpy as np
-
 
 def fitPCA(X, nComponents):
     X = np.asarray(X, dtype=float)

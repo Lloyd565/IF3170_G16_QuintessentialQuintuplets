@@ -1,7 +1,5 @@
 import pandas as pd
-
 from .pca import fitPCA, transformPCA
-
 
 def dimensionality_reduction(X, reducer=None, fit=False, nComponents=None):
     if not isinstance(X, pd.DataFrame):
