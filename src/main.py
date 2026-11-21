@@ -39,6 +39,16 @@ def parseGamma(value):
     return gamma
 
 
+def parseComponents(value):
+    try:
+        components = int(value) if value.isdigit() else float(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("components harus int >= 1 atau float di antara 0 dan 1.") from error
+    if isinstance(components, int) and components < 1 or isinstance(components, float) and not 0 < components < 1:
+        raise argparse.ArgumentTypeError("components harus int >= 1 atau float di antara 0 dan 1.")
+    return components
+
+
 def createParser():
     parser = CliParser(description="Preprocess data, train models, and save predictions.")
     parser.add_argument("--interactive", action="store_true", help="Ask for options interactively.")
@@ -78,6 +88,8 @@ def addTrainingArguments(command):
     preprocessing.add_argument("--cleaning", action=argparse.BooleanOptionalAction, default=True)
     preprocessing.add_argument("--transformation", action=argparse.BooleanOptionalAction, default=True)
     preprocessing.add_argument("--features", type=int, help="Number of columns selected by mRMR.")
+    preprocessing.add_argument("--components", type=parseComponents,
+                               help="PCA: int = jumlah komponen, float 0-1 = target variansi kumulatif.")
     preprocessing.add_argument("--oversample", action="store_true")
     preprocessing.add_argument("--validation-size", dest="validationSize", type=float, default=0.2)
     preprocessing.add_argument("--validation-output", dest="validationOutput", type=Path, default=OUTPUT_DIR / "validation")
@@ -180,6 +192,9 @@ def interactiveArguments():
         count = input("Jumlah fitur mRMR [kosong untuk semua]: ").strip()
         if count:
             arguments.extend(("--features", count))
+        components = input("Komponen PCA, int atau variansi 0-1 [kosong untuk tanpa PCA]: ").strip()
+        if components:
+            arguments.extend(("--components", components))
         if askBoolean("Gunakan oversampling? [tidak]: ", False):
             arguments.append("--oversample")
         size = input("Proporsi validasi [0.2]: ").strip()
