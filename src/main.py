@@ -5,8 +5,8 @@ from numbers import Integral, Real
 from pathlib import Path
 import sys
 
-from .core.config import DATA_DIR, MODELS_DIR, OUTPUT_DIR, SUBMISSIONS_DIR
-from .workflows.cli import runPredict, runTrain, selectedModels
+from .core.config import DATA_DIR, METRICS_DIR, MODELS_DIR, OUTPUT_DIR, SUBMISSIONS_DIR
+from .workflows.cli import runEvaluate, runPredict, runTrain, selectedModels, showMetrics
 
 MODEL_NAMES = ("knn", "dtl", "logistic_regression", "svm", "naive_bayes")
 
@@ -50,36 +50,42 @@ def parseComponents(value):
 
 
 def createParser():
-    parser = CliParser(description="Preprocess data, train models, and save predictions.")
+    parser = CliParser(description="Preprocess data, train models, evaluate, and save predictions.")
     parser.add_argument("--interactive", action="store_true", help="Ask for options interactively.")
     commands = parser.add_subparsers(dest="command", required=True)
     descriptions = {
         "run": "Train models and predict on a separate test CSV.",
         "train": "Fit preprocessing and models on training data.",
         "predict": "Reuse saved preprocessing and models for prediction.",
-        "evaluate": "Reserved for the evaluation workflow.",
+        "evaluate": "Evaluate saved models on a labeled CSV using fitted preprocessing.",
         "compare": "Reserved for the baseline comparison workflow.",
     }
     for name, description in descriptions.items():
         command = commands.add_parser(name, help=description, description=description)
         command.add_argument("--model", nargs="+", choices=("all",) + MODEL_NAMES, default=["all"])
-        if name in ("evaluate", "compare"):
+        if name == "compare":
             continue
         training = name in ("train", "run")
-        command.add_argument("--input", type=Path, default=DATA_DIR / ("train.csv" if training else "test.csv"))
+        command.add_argument(
+            "--input", type=Path, required=name == "evaluate",
+            default=None if name == "evaluate" else DATA_DIR / ("train.csv" if training else "test.csv"),
+        )
         command.add_argument("--target", default="is_canceled")
         command.add_argument("--id-column", dest="idColumn", default="id")
         command.add_argument("--model-dir", dest="modelDir", type=Path, default=MODELS_DIR)
-        command.add_argument("--output-dir", dest="outputDir", type=Path, default=SUBMISSIONS_DIR)
+        command.add_argument("--output-dir", dest="outputDir", type=Path,
+                            default=OUTPUT_DIR / "validation" if name == "evaluate" else SUBMISSIONS_DIR)
+        command.add_argument("--threshold", type=float, help="Logistic regression prediction threshold.")
+        if name in ("train", "run", "evaluate"):
+            command.add_argument("--metrics-dir", dest="metricsDir", type=Path, default=METRICS_DIR)
         if training:
             addTrainingArguments(command)
         if name in ("predict", "run"):
             command.add_argument("--template", type=Path, help="Authoritative sample-submission CSV.")
-            command.add_argument("--threshold", type=float, help="Logistic regression prediction threshold.")
-            if name == "predict":
-                command.add_argument("--prepared", action="store_true", help="Input already matches model features.")
-            else:
+            if name == "run":
                 command.add_argument("--test-input", dest="testInput", type=Path, default=DATA_DIR / "test.csv")
+        if name in ("predict", "evaluate"):
+            command.add_argument("--prepared", action="store_true", help="Input already matches model features.")
     return parser
 
 
@@ -175,11 +181,13 @@ def askBoolean(message, default):
 
 
 def interactiveArguments():
-    command = input("Perintah run/train/predict [run]: ").strip() or "run"
-    if command not in ("run", "train", "predict"):
-        raise ValueError("Perintah harus berupa run, train, atau predict.")
+    command = input("Perintah run/train/predict/evaluate [run]: ").strip() or "run"
+    if command not in ("run", "train", "predict", "evaluate"):
+        raise ValueError("Perintah harus berupa run, train, predict, atau evaluate.")
     arguments = [command]
-    path = input("Lokasi CSV input [default data/]: ").strip()
+    path = input("Lokasi CSV berlabel untuk evaluasi: " if command == "evaluate" else "Lokasi CSV input [default data/]: ").strip()
+    if command == "evaluate" and not path:
+        raise ValueError("Evaluasi membutuhkan lokasi CSV yang memuat label asli.")
     if path:
         arguments.extend(("--input", path))
     names = input("Model, pisahkan dengan koma atau spasi [all]: ").strip() or "all"
@@ -207,7 +215,7 @@ def interactiveArguments():
         path = input("Lokasi CSV test [data/test.csv]: ").strip()
         if path:
             arguments.extend(("--test-input", path))
-    if command == "predict":
+    if command in ("predict", "evaluate"):
         if askBoolean("Data sudah dipreproses sesuai model? [tidak]: ", False):
             arguments.append("--prepared")
     if command in ("run", "predict"):
@@ -227,7 +235,7 @@ def main(argv=None):
             parser.print_help()
             return 0
         args = parser.parse_args(arguments)
-        if args.command in ("evaluate", "compare"):
+        if args.command == "compare":
             raise NotImplementedError(f"Perintah {args.command!r} belum diimplementasikan.")
         if args.command in ("train", "run"):
             models = runTrain(args, modelParameters(args))
@@ -238,6 +246,10 @@ def main(argv=None):
                 args.prepared = False
                 predictions = runPredict(args)
                 print(f"Predictions saved to {args.outputDir}: {', '.join(predictions)}")
+        elif args.command == "evaluate":
+            results = runEvaluate(args)
+            showMetrics(results)
+            print(f"Evaluation metrics saved to {Path(args.metricsDir) / 'metrics.csv'}")
         else:
             predictions = runPredict(args)
             print(f"Predictions saved to {args.outputDir}: {', '.join(predictions)}")

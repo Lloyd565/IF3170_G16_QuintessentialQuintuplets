@@ -8,7 +8,7 @@ from ..algorithms.dtl import dtl
 from ..algorithms.knn import KNN
 from ..algorithms.logistic_regression import logisticRegression
 from ..algorithms.naive_bayes import naive_bayes as naiveBayes
-from ..algorithms.svm import SVM
+from ..algorithms.svm import svm
 from ..core.config import MODELS_DIR
 from ..core.serialization import saveModel
 
@@ -68,7 +68,7 @@ def trainBayes(X, y, **parameters):
 
 
 def trainSVM(X, y, **parameters):
-    return SVM(**parameters).fit(np.asarray(X), np.asarray(y))
+    return svm(X, y, **parameters)
 
 
 def saveDTLModel(model, modelDir=MODELS_DIR) -> Path:
