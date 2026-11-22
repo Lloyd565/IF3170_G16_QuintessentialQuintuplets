@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split as trainTestSplit
 
 from ..core.serialization import loadModel, saveModel
 from ..processing.pipeline import runPreprocessing
+from .evaluate import evaluate
 from .predict import predict
 from .train import train
 
@@ -44,6 +45,7 @@ def runTrain(args, modelParameters):
         raise ValueError("validationSize harus berada di antara 0 dan 1, tanpa menyertakan 1.")
     if args.randomState < 0:
         raise ValueError("randomState tidak boleh negatif.")
+    predictionParameters(args, selectedModels(args))
     frame = readData(args.input, args.idColumn)
     if args.target not in frame:
         raise ValueError(f"Kolom target tidak ditemukan: {args.target}.")
@@ -80,21 +82,29 @@ def runTrain(args, modelParameters):
     saveModel(state, Path(args.modelDir) / "preprocessing.pkl")
     if validFeatures is not None:
         ids = frame.loc[validFeatures.index, args.idColumn] if args.idColumn in frame else None
-        predict(validFeatures, models, outputDir=args.validationOutput, ids=ids,
-                targetColumn=args.target, idColumn=args.idColumn)
+        predictions = predict(
+            validFeatures, models, outputDir=args.validationOutput, ids=ids,
+            modelParameters=predictionParameters(args, list(models)),
+            targetColumn=args.target, idColumn=args.idColumn,
+        )
+        results = evaluate(predictions, validTarget, outputDir=args.metricsDir)
+        showMetrics(results)
+        print(f"Validation metrics saved to {Path(args.metricsDir) / 'metrics.csv'}")
     return models
 
 
-def runPredict(args):
+def prepareInference(args, frame=None):
     if args.target == args.idColumn:
         raise ValueError("Nama kolom target dan identitas harus berbeda.")
-    frame = readData(args.input, args.idColumn)
-    ids = frame[args.idColumn].copy() if args.idColumn in frame else None
+    if frame is None:
+        frame = readData(args.input, args.idColumn)
     features = frame.drop(columns=[args.target, args.idColumn], errors="ignore")
     names = selectedModels(args)
     if not args.prepared:
         state = loadModel(Path(args.modelDir) / "preprocessing.pkl")
-        features, _, state = runPreprocessing(features, state=state, name="test")
+        features, _, state = runPreprocessing(
+            features, state=state, name="evaluation" if args.command == "evaluate" else "test",
+        )
         trainedNames = state.get("modelNames", [])
         if not trainedNames:
             raise ValueError("State preprocessing tidak memiliki daftar model terlatih.")
@@ -102,16 +112,49 @@ def runPredict(args):
             raise ValueError("Model yang dipilih tidak dilatih dengan state preprocessing tersimpan.")
         if names is None:
             names = trainedNames
+    return frame, features, names
+
+
+def predictionParameters(args, names):
+    if args.threshold is None:
+        return None
+    if names is not None and "logistic_regression" not in names:
+        raise ValueError("threshold hanya dapat digunakan saat logistic_regression dipilih.")
+    return {"logistic_regression": {"threshold": args.threshold}}
+
+
+def runPredict(args):
+    frame, features, names = prepareInference(args)
+    ids = frame[args.idColumn].copy() if args.idColumn in frame else None
     template = None
     if args.template is not None:
         if ids is None:
             raise ValueError("Data prediksi harus memiliki kolom identitas untuk dicocokkan dengan templat.")
         template = readData(args.template, args.idColumn)
-    parameters = {"logistic_regression": {"threshold": args.threshold}} if args.threshold is not None else None
-    if parameters and names is not None and "logistic_regression" not in names:
-        raise ValueError("threshold hanya dapat digunakan saat logistic_regression dipilih.")
     return predict(
-        features, modelNames=names, modelParameters=parameters, modelDir=args.modelDir,
+        features, modelNames=names, modelParameters=predictionParameters(args, names), modelDir=args.modelDir,
         outputDir=args.outputDir, ids=ids, template=template,
         targetColumn=args.target, idColumn=args.idColumn,
     )
+
+
+def runEvaluate(args):
+    frame = readData(args.input, args.idColumn)
+    if args.target not in frame:
+        raise ValueError(f"Kolom target tidak ditemukan untuk evaluasi: {args.target}.")
+    target = frame[args.target].copy()
+    if target.isna().any() or not target.isin([0, 1]).all():
+        raise ValueError("Label evaluasi hanya boleh berisi 0 dan 1 tanpa nilai yang hilang.")
+    frame, features, names = prepareInference(args, frame)
+    ids = frame[args.idColumn].copy() if args.idColumn in frame else None
+    predictions = predict(
+        features, modelNames=names, modelParameters=predictionParameters(args, names),
+        modelDir=args.modelDir, outputDir=args.outputDir, ids=ids,
+        targetColumn=args.target, idColumn=args.idColumn,
+    )
+    return evaluate(predictions, target, outputDir=args.metricsDir)
+
+
+def showMetrics(results):
+    frame = pd.DataFrame.from_dict(results, orient="index").rename_axis("model").reset_index()
+    print(frame.to_string(index=False, float_format=lambda value: f"{value:.4f}"))

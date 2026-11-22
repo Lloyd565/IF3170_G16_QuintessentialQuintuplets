@@ -4,10 +4,10 @@ Tugas Besar 2 AI: Supervised Learning (IF3170). This project will implement KNN,
 Decision Tree Learning (DTL), Logistic Regression, SVM, and Naive Bayes from
 scratch, with shared preprocessing, evaluation, visualization, and Kaggle workflows.
 
-KNN, Logistic Regression, SVM, cleaning, transformation, and mRMR feature selection
-are implemented. The CLI supports interactive setup, training, and prediction with
-saved preprocessing and models. DTL, Naive Bayes, dimensionality reduction,
-evaluation, and comparison workflows remain unfinished.
+KNN, DTL, Logistic Regression, cleaning, transformation, mRMR feature selection,
+PCA, and evaluation are implemented. The CLI supports interactive setup, training,
+evaluation, and prediction with saved preprocessing and models. SVM, Naive Bayes,
+and the comparison workflow remain unfinished.
 
 ## Repository structure
 
@@ -136,6 +136,7 @@ python -m src.main run --model logistic_regression --features 10 --epochs 100
 python -m src.main train --model knn --k 5
 python -m src.main train --model svm --kernel rbf
 python -m src.main predict --model knn --input data/test.csv --template data/sample_submission.csv
+python -m src.main evaluate --model knn --input path/to/labeled_validation.csv
 ```
 
 Model names are `knn`, `dtl`, `logistic_regression`, `svm`, and `naive_bayes`.
@@ -148,6 +149,10 @@ reserves a stratified 20% validation split before fitting preprocessing. Cleanin
 and transformation are enabled by default. Use `--features K` for mRMR,
 `--oversample` to balance the training split, and `--validation-size 0` to disable
 the holdout split. Validation predictions are written to `output/validation/`.
+After predicting the holdout rows, training prints accuracy, precision, recall,
+F1, and balanced accuracy for each model and saves `output/metrics/metrics.csv`.
+Use `--metrics-dir` to change the report directory. No validation metrics are
+generated when `--validation-size 0` is used.
 For prepared numeric CSVs, pass `--no-cleaning --no-transformation`.
 
 Model options include `--k`, `--kernel`, `--learning-rate`, `--epochs`,
@@ -164,7 +169,21 @@ order. `--template` verifies the submission schema and identifier order. Use
 `run` performs training followed by prediction on `data/test.csv`; override the
 test path with `--test-input`. Paths are configurable with `--input`, `--model-dir`,
 `--output-dir`, and `--validation-output`; custom column names use `--target` and
-`--id-column`. The `evaluate` and `compare` commands remain unimplemented.
+`--id-column`. The `compare` command remains unimplemented.
+
+`evaluate` requires `--input` pointing to a labeled CSV containing the target
+column. It loads existing models, reuses fitted preprocessing, and reports scores
+without retraining. Prediction files default to `output/validation/` and metric
+reports to `output/metrics/metrics.csv`. Use `--prepared` for inputs that already
+match the trained feature space. `--threshold` controls Logistic Regression
+decisions during validation, evaluation, and test prediction.
+
+Metric functions accept predictions first and true labels second, both as 1D
+binary arrays. Scores range from 0 to 1, with class 1 treated as positive.
+Precision, recall, and F1 return 0 for a zero denominator. Balanced accuracy is
+the mean recall of the classes present in the true labels. Plotting is reserved
+for later; scoring functions are also available through
+`src.processing.visualization.metrics`.
 
 ## Contributor guidelines
 
