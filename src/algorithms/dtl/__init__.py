@@ -1,4 +1,4 @@
-"""Public entry points for from-scratch CART classification."""
+"""Public entry points for entropy-based DTL."""
 
 from .model import DTL, DecisionTreeClassifier, dtl
 
