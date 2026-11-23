@@ -41,8 +41,8 @@ class SVM:
                 L, H = max(0.0, a[j] - a[i]), min(C[j], C[i] + a[j] - a[i])
             else:
                 L, H = max(0.0, a[i] + a[j] - C[i]), min(C[j], a[i] + a[j])
-            eta = 2 * Ki[j] - Ki[i] - diag[j]
-            if L == H or eta >= 0:
+            eta = min(2 * Ki[j] - Ki[i] - diag[j], -1e-12)
+            if L == H:
                 return False
             aj = np.clip(a[j] - t[j] * (E[i] - E[j]) / eta, L, H)
             if abs(aj - a[j]) < 1e-8:
@@ -71,6 +71,14 @@ class SVM:
                 if it >= self.max_iter:
                     break
             passes = passes + 1 if changed == 0 else 0
+        r = t - (E + t - b)
+        lo, hi = a < 1e-8, a > C - 1e-8
+        free = ~(lo | hi)
+        if free.any():
+            b = r[free].mean()
+        else:
+            lb, ub = r[(t > 0) & lo | (t < 0) & hi], r[(t > 0) & hi | (t < 0) & lo]
+            b = ((lb.max() if lb.size else ub.min()) + (ub.min() if ub.size else lb.max())) / 2
 
         sv = a > 1e-8
         self.support_vectors_, self.dual_coef_ = X[sv], (a * t)[sv]
