@@ -20,7 +20,6 @@ and the comparison workflow remain unfinished.
 │   ├── main.py                        # Argument parsing and workflow delegation
 │   ├── core/                          # Shared infrastructure only
 │   │   ├── __init__.py
-│   │   ├── base_model.py               # Optional interface documentation
 │   │   ├── config.py                   # Project paths
 │   │   ├── registry.py                 # Future algorithm selection
 │   │   └── serialization.py            # Future artifact saving/loading
@@ -74,13 +73,10 @@ and the comparison workflow remain unfinished.
 │   │   │   ├── __init__.py
 │   │   │   ├── feature_selection.py
 │   │   │   └── selection.py
-│   │   ├── dimensionality_reduction/
-│   │   │   ├── __init__.py
-│   │   │   ├── dimensionality_reduction.py
-│   │   │   └── pca.py
-│   │   └── visualization/
+│   │   └── dimensionality_reduction/
 │   │       ├── __init__.py
-│   │       └── metrics.py
+│   │       ├── dimensionality_reduction.py
+│   │       └── pca.py
 │   ├── workflows/
 │   │   ├── cli.py                     # CSV loading and CLI coordination
 │   │   ├── __init__.py
@@ -181,18 +177,16 @@ decisions during validation, evaluation, and test prediction.
 Metric functions accept predictions first and true labels second, both as 1D
 binary arrays. Scores range from 0 to 1, with class 1 treated as positive.
 Precision, recall, and F1 return 0 for a zero denominator. Balanced accuracy is
-the mean recall of the classes present in the true labels. Plotting is reserved
-for later; scoring functions are also available through
-`src.processing.visualization.metrics`.
+the mean recall of the classes present in the true labels. Scoring functions
+are available through `src.evaluation`.
 
 ## Contributor guidelines
 
 - Keep each algorithm's implementation inside its own `src/algorithms/` package.
   Each package currently exports a function named after the algorithm. These are
   placeholders; owners may choose classes, functions, parameters, and internal
-  representations without mandatory inheritance. `core/base_model.py` only
-  documents a possible future interface. Keep scikit-learn reference models in
-  `sklearn_baselines.py`, separate from the from-scratch implementations.
+  representations without mandatory inheritance. Keep scikit-learn reference
+  models in `sklearn_baselines.py`, separate from the from-scratch implementations.
   Keep algorithm-specific bonus visualizations and extensions in that algorithm's
   `bonus/` package; each currently provides a `visualize_bonus()` placeholder.
 - Keep preprocessing internals within their stage's folder. Each stage exposes
@@ -211,8 +205,7 @@ for later; scoring functions are also available through
   and output directories. Keep `core/` limited to shared infrastructure and
   `main.py` limited to parsing and delegation. Use package imports consistently
   and run the CLI as `python -m src.main` from the repository root.
-- Put scoring logic in `evaluation/`, shared metric plotting in
-  `processing/visualization/`, documentation in `docs/`, and future tests in
+- Put scoring logic in `evaluation/`, documentation in `docs/`, and future tests in
   `tests/`. Replace placeholders with real behavior when implementing a module;
   do not return fabricated results.
 
