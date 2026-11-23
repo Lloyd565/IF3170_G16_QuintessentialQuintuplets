@@ -9,6 +9,7 @@ from ..algorithms.logistic_regression.bonus.visualization import checkVideoWrite
 from ..core.config import MEDIA_DIR
 from ..core.serialization import loadModel, saveModel
 from ..processing.pipeline import runPreprocessing
+from .compare import compare
 from .evaluate import evaluate
 from .predict import predict
 from .train import train
@@ -48,6 +49,12 @@ def runTrain(args, modelParameters):
         raise ValueError("validationSize harus berada di antara 0 dan 1, tanpa menyertakan 1.")
     if args.randomState < 0:
         raise ValueError("randomState tidak boleh negatif.")
+    comparisonRequested = getattr(args, "compareModels", False)
+    baselineParameters = getattr(args, "baselineParams", {})
+    if comparisonRequested and not args.validationSize:
+        raise ValueError("Perbandingan membutuhkan validationSize lebih besar dari 0.")
+    if baselineParameters and not comparisonRequested:
+        raise ValueError("Parameter acuan membutuhkan --compare atau perintah compare.")
     predictionParameters(args, selectedModels(args))
     bonusRequested = getattr(args, "logresBonus", False)
     bonusOutput = getattr(args, "bonusOutput", MEDIA_DIR / "logistic_regression_training.mp4")
@@ -106,6 +113,16 @@ def runTrain(args, modelParameters):
         results = evaluate(predictions, validTarget, outputDir=args.metricsDir)
         showMetrics(results)
         print(f"Validation metrics saved to {Path(args.metricsDir) / 'metrics.csv'}")
+        if comparisonRequested:
+            report = compare(
+                features, target, validFeatures, validTarget, predictions,
+                modelParameters={name: values for name, values in (modelParameters or {}).items() if name in models},
+                baselineParameters=baselineParameters,
+                threshold=0.5 if args.threshold is None else args.threshold,
+                outputDir=args.metricsDir,
+            )
+            showComparison(report)
+            print(f"Comparison metrics saved to {Path(args.metricsDir) / 'comparison.csv'}")
     if bonusRequested:
         video = visualizeBonus(models["logistic_regression"], bonusOutput, featureIndex=bonusIndex)
         print(f"Training video saved to {video}")
@@ -190,3 +207,7 @@ def runEvaluate(args):
 def showMetrics(results):
     frame = pd.DataFrame.from_dict(results, orient="index").rename_axis("model").reset_index()
     print(frame.to_string(index=False, float_format=lambda value: f"{value:.4f}"))
+
+
+def showComparison(report):
+    print(report.to_string(index=False, float_format=lambda value: f"{value:.4f}", na_rep="tidak terdefinisi"))

@@ -58,14 +58,12 @@ def createParser():
         "train": "Fit preprocessing and models on training data.",
         "predict": "Reuse saved preprocessing and models for prediction.",
         "evaluate": "Evaluate saved models on a labeled CSV using fitted preprocessing.",
-        "compare": "Reserved for the baseline comparison workflow.",
+        "compare": "Train models and compare with scikit-learn on the validation split.",
     }
     for name, description in descriptions.items():
         command = commands.add_parser(name, help=description, description=description)
         command.add_argument("--model", nargs="+", choices=("all",) + MODEL_NAMES, default=["all"])
-        if name == "compare":
-            continue
-        training = name in ("train", "run")
+        training = name in ("train", "run", "compare")
         command.add_argument(
             "--input", type=Path, required=name == "evaluate",
             default=None if name == "evaluate" else DATA_DIR / ("train.csv" if training else "test.csv"),
@@ -76,10 +74,12 @@ def createParser():
         command.add_argument("--output-dir", dest="outputDir", type=Path,
                             default=OUTPUT_DIR / "validation" if name == "evaluate" else SUBMISSIONS_DIR)
         command.add_argument("--threshold", type=float, help="Logistic regression prediction threshold.")
-        if name in ("train", "run", "evaluate"):
+        if name in ("train", "run", "compare", "evaluate"):
             command.add_argument("--metrics-dir", dest="metricsDir", type=Path, default=METRICS_DIR)
         if training:
             addTrainingArguments(command)
+        if name == "compare":
+            command.set_defaults(compareModels=True)
         if name in ("predict", "run"):
             command.add_argument("--template", type=Path, help="Authoritative sample-submission CSV.")
             if name == "run":
@@ -119,6 +119,11 @@ def addTrainingArguments(command):
     models.add_argument("--max-iter", dest="maxIter", type=int, default=100000)
     models.add_argument("--class-weight", dest="classWeight", choices=("none", "balanced"), default="none",
                         help="SVM: balanced menaikkan C kelas minoritas sebesar n / (2 * n_kelas).")
+    comparison = command.add_argument_group("scikit-learn comparison")
+    comparison.add_argument("--compare", dest="compareModels", action="store_true",
+                            help="Compare with scikit-learn using the same training and validation data.")
+    comparison.add_argument("--baseline-params", dest="baselineParams", type=parseParameters, default={},
+                            help="Per-model JSON overrides using scikit-learn parameter names.")
     bonus = command.add_argument_group("logistic regression bonus")
     bonus.add_argument("--logres-bonus", dest="logresBonus", action="store_true",
                        help="Record parameter history and generate an MP4 training video.")
@@ -191,9 +196,9 @@ def askBoolean(message, default):
 
 
 def interactiveArguments():
-    command = input("Perintah run/train/predict/evaluate [run]: ").strip() or "run"
-    if command not in ("run", "train", "predict", "evaluate"):
-        raise ValueError("Perintah harus berupa run, train, predict, atau evaluate.")
+    command = input("Perintah run/train/predict/evaluate/compare [run]: ").strip() or "run"
+    if command not in ("run", "train", "predict", "evaluate", "compare"):
+        raise ValueError("Perintah harus berupa run, train, predict, evaluate, atau compare.")
     arguments = [command]
     path = input("Lokasi CSV berlabel untuk evaluasi: " if command == "evaluate" else "Lokasi CSV input [default data/]: ").strip()
     if command == "evaluate" and not path:
@@ -202,7 +207,7 @@ def interactiveArguments():
         arguments.extend(("--input", path))
     names = input("Model, pisahkan dengan koma atau spasi [all]: ").strip() or "all"
     arguments.extend(("--model", *names.replace(",", " ").split()))
-    if command in ("train", "run"):
+    if command in ("train", "run", "compare"):
         if not askBoolean("Gunakan cleaning? [ya]: ", True):
             arguments.append("--no-cleaning")
         if not askBoolean("Gunakan transformation? [ya]: ", True):
@@ -221,6 +226,12 @@ def interactiveArguments():
         parameters = input('Parameter model JSON, contoh {"knn":{"k":5}} [default]: ').strip()
         if parameters:
             arguments.extend(("--model-params", parameters))
+        compareModels = command == "compare" or askBoolean("Bandingkan dengan scikit-learn? [tidak]: ", False)
+        if compareModels:
+            arguments.append("--compare")
+            baseline = input("Parameter acuan scikit-learn JSON [sesuaikan dengan model sendiri]: ").strip()
+            if baseline:
+                arguments.extend(("--baseline-params", baseline))
         selected = names.replace(",", " ").split()
         if "all" in selected or "logistic_regression" in selected:
             if askBoolean("Buat video bonus Logistic Regression? [tidak]: ", False):
@@ -252,9 +263,7 @@ def main(argv=None):
             parser.print_help()
             return 0
         args = parser.parse_args(arguments)
-        if args.command == "compare":
-            raise NotImplementedError(f"Perintah {args.command!r} belum diimplementasikan.")
-        if args.command in ("train", "run"):
+        if args.command in ("train", "run", "compare"):
             models = runTrain(args, modelParameters(args))
             print(f"Models saved to {args.modelDir}: {', '.join(models)}")
             if args.command == "run":
