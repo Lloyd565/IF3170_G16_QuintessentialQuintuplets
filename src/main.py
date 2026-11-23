@@ -130,6 +130,12 @@ def addTrainingArguments(command):
                        default=MEDIA_DIR / "logistic_regression_training.mp4")
     bonus.add_argument("--bonus-feature", dest="bonusFeature", default="0",
                        help="Prepared feature name or zero-based index for the parameter plot.")
+    bayesBonus = command.add_argument_group("naive bayes bonus")
+    bayesBonus.add_argument("--naive-bayes-bonus", dest="naiveBayesBonus", action="store_true",
+                           help="Generate the Naive Bayes feature/class graph after training.")
+    bayesBonus.add_argument("--naive-bayes-bonus-output", dest="naiveBayesBonusOutput", type=Path,
+                           default=MEDIA_DIR / "naive_bayes_graph.png",
+                           help="Naive Bayes graph output path (.png, .svg, or .pdf).")
 
 
 def modelParameters(args):
@@ -238,6 +244,12 @@ def interactiveArguments():
                 feature = input("Nama atau indeks kolom untuk lintasan parameter [0]: ").strip()
                 if feature:
                     arguments.extend(("--bonus-feature", feature))
+        if "all" in selected or "naive_bayes" in selected:
+            if askBoolean("Buat graf bonus Naive Bayes? [tidak]: ", False):
+                arguments.append("--naive-bayes-bonus")
+                output = input("Lokasi gambar bonus Naive Bayes [output/media/naive_bayes_graph.png]: ").strip()
+                if output:
+                    arguments.extend(("--naive-bayes-bonus-output", output))
     if command == "run":
         path = input("Lokasi CSV test [data/test.csv]: ").strip()
         if path:

@@ -1,6 +1,7 @@
-"""Placeholder for optional Naive Bayes visualizations and other bonus work."""
+def visualizeBonus(model, featureNames, outputPath):
+    from .graph import draw_graph
+
+    return draw_graph(model, featureNames, outputPath)
 
 
-def visualize_bonus(*args, **kwargs):
-    """Create an optional Naive Bayes visualization to be defined later."""
-    raise NotImplementedError
+__all__ = ["visualizeBonus"]

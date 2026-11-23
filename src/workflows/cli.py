@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split as trainTestSplit
 
 from ..algorithms.logistic_regression.bonus import visualizeBonus
 from ..algorithms.logistic_regression.bonus.visualization import checkVideoWriter
+from ..algorithms.naive_bayes.bonus import visualizeBonus as visualizeBayesBonus
 from ..core.config import MEDIA_DIR
 from ..core.registry import validateModelNames
 from ..core.serialization import loadModel, saveModel
@@ -66,6 +67,12 @@ def runTrain(args, modelParameters):
         checkVideoWriter()
         modelParameters = {name: dict(values) for name, values in (modelParameters or {}).items()}
         modelParameters.setdefault("logistic_regression", {})["recordHistory"] = True
+    bayesBonusRequested = getattr(args, "naiveBayesBonus", False)
+    bayesBonusOutput = getattr(args, "naiveBayesBonusOutput", MEDIA_DIR / "naive_bayes_graph.png")
+    if bayesBonusRequested:
+        names = selectedModels(args)
+        if names is not None and "naive_bayes" not in names:
+            raise ValueError("Bonus Naive Bayes membutuhkan pemilihan model naive_bayes.")
     frame = readData(args.input, args.idColumn)
     if args.target not in frame:
         raise ValueError(f"Kolom target tidak ditemukan: {args.target}.")
@@ -125,6 +132,12 @@ def runTrain(args, modelParameters):
     if bonusRequested:
         video = visualizeBonus(models["logistic_regression"], bonusOutput, featureIndex=bonusIndex)
         print(f"Training video saved to {video}")
+    if bayesBonusRequested:
+        graph = visualizeBayesBonus(
+            models["naive_bayes"], featureNames=features.columns,
+            outputPath=bayesBonusOutput,
+        )
+        print(f"Naive Bayes graph saved to {graph}")
     return models
 
 
