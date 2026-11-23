@@ -2,6 +2,7 @@ import pandas as pd
 
 from .cleaning import cleaning
 from .dimensionality_reduction import dimensionality_reduction
+from .dtl import DTLPreprocessor
 from .feature_selection import featureSelection
 from .transformation import handle_imbalance as handleImbalance, transformation
 
@@ -17,6 +18,7 @@ def runPreprocessing(
     featureCount=None,
     components=None,
     oversample=False,
+    dtlPreprocessing=False,
     randomState=42,
     name="data",
 ):
@@ -26,6 +28,8 @@ def runPreprocessing(
         if not isinstance(y, pd.Series) or not X.index.equals(y.index):
             raise ValueError("y harus berupa Series dengan indeks dan urutan yang sama dengan X.")
     if fit:
+        if dtlPreprocessing and not (clean and transform):
+            raise ValueError("DTL preprocessing membutuhkan cleaning dan transformation aktif.")
         state = {
             "version": 1,
             "inputColumns": X.columns.tolist(),
@@ -34,6 +38,7 @@ def runPreprocessing(
             "cleaner": None,
             "transformer": None,
             "outputColumns": None,
+            "dtlPreprocessor": DTLPreprocessor() if dtlPreprocessing else None,
         }
     elif not isinstance(state, dict) or state.get("version") != 1:
         raise ValueError("Butuh state preprocessing yang sudah di-fit dan memiliki format yang sesuai.")
@@ -41,11 +46,14 @@ def runPreprocessing(
         raise ValueError("Kolom data harus sama dengan kolom saat preprocessing dilatih.")
     features = X.loc[:, state["inputColumns"]].copy()
     target = None if y is None else y.copy()
-    if state["clean"]:
+    dtlPreprocessor = state.get("dtlPreprocessor")
+    if dtlPreprocessor is not None:
+        features = dtlPreprocessor.fit_transform(features) if fit else dtlPreprocessor.transform(features)
+    elif state["clean"]:
         features, state["cleaner"] = cleaning(
             features, cleaner=state["cleaner"], fit=fit, name=name,
         )
-    if state["transform"]:
+    if dtlPreprocessor is None and state["transform"]:
         features, state["transformer"] = transformation(
             features, transformer=state["transformer"], fit=fit,
         )
