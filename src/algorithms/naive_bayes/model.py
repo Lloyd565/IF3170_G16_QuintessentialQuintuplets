@@ -11,6 +11,7 @@ class NaiveBayes:
         self.prior_logs = None
         self.means = None
         self.variances = None
+        self.used_cols = None
 
     def fit(self, X, y):
         X = np.asarray(X, dtype=float)
@@ -38,6 +39,7 @@ class NaiveBayes:
         largest_variance = X.var(axis=0).max()
         self.variances = self.variances + self.smoothing * largest_variance
 
+        self.used_cols = np.arange(feature_count)
         return self
 
     def class_scores(self, X):
@@ -45,6 +47,9 @@ class NaiveBayes:
             raise ValueError("Model belum dilatih, panggil fit terlebih dahulu.")
 
         X = np.asarray(X, dtype=float)
+        X = X[:, self.used_cols]
+        means = self.means[:, self.used_cols]
+        variances = self.variances[:, self.used_cols]
 
         # Turunan rumus log Gaussian (var = sigma^2, mu = mean kelas):
         #   p(x)     = 1 / sqrt(2*pi*var) * exp(-(x - mu)^2 / (2*var))
@@ -54,7 +59,7 @@ class NaiveBayes:
 
         scores = np.zeros((len(X), len(self.classes)))
         for i in range (len(self.classes)):
-            log_likelihood = -0.5 * np.log(2 * np.pi * self.variances[i]) - ((X - self.means[i]) ** 2) / (2 * self.variances[i])
+            log_likelihood = -0.5 * np.log(2 * np.pi * variances[i]) - ((X - means[i]) ** 2) / (2 * variances[i])
             scores[:, i] = self.prior_logs[i] + log_likelihood.sum(axis=1)
         return scores
 
@@ -71,9 +76,15 @@ class NaiveBayes:
         return self.classes[best]
 
 
-def naive_bayes(X, y, smoothing=1e-9):
+def naive_bayes(X, y, smoothing=1e-9, pick_features=False):
     model = NaiveBayes(smoothing=smoothing)
     model.fit(X, y)
 
+    if pick_features:
+        from .bonus import select
+
+        picked, round_scores = select.pick_features(X, y, smoothing=smoothing)
+        model.used_cols = picked
+        model.round_scores = round_scores
 
     return model
