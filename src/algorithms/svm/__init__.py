@@ -1,5 +1,4 @@
-"""Public placeholder entry point for Support Vector Machines."""
+from .kernels import compute_kernel
+from .model import SVM, svm
 
-from .model import svm
-
-__all__ = ["svm"]
+__all__ = ["SVM", "svm", "compute_kernel"]
