@@ -30,6 +30,9 @@ def evaluateMetrics(result, testData) -> dict[str, float]:
     actualPositive = truePositive + falseNegative
     actualNegative = trueNegative + falsePositive
     f1Denominator = 2 * truePositive + falsePositive + falseNegative
+    negativeF1Denominator = 2 * trueNegative + falsePositive + falseNegative
+    positiveF1 = 2 * truePositive / f1Denominator if f1Denominator else 0.0
+    negativeF1 = 2 * trueNegative / negativeF1Denominator if negativeF1Denominator else 0.0
     positiveRecall = truePositive / actualPositive if actualPositive else 0.0
     classRecalls = []
     if actualPositive:
@@ -40,7 +43,8 @@ def evaluateMetrics(result, testData) -> dict[str, float]:
         "accuracy": (truePositive + trueNegative) / total,
         "precision": truePositive / predictedPositive if predictedPositive else 0.0,
         "recall": positiveRecall,
-        "f1Score": 2 * truePositive / f1Denominator if f1Denominator else 0.0,
+        "f1Score": positiveF1,
+        "macrof1Score": (positiveF1 + negativeF1) / 2,
         "balancedAccuracy": sum(classRecalls) / len(classRecalls),
     }
 
@@ -63,3 +67,7 @@ def f1Score(result, testData) -> float:
 
 def balancedAccuracy(result, testData) -> float:
     return evaluateMetrics(result, testData)["balancedAccuracy"]
+
+
+def macrof1Score(result, testData) -> float:
+    return evaluateMetrics(result, testData)["macrof1Score"]
