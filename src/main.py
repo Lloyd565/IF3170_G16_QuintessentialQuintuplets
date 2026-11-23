@@ -6,9 +6,8 @@ from pathlib import Path
 import sys
 
 from .core.config import DATA_DIR, MEDIA_DIR, METRICS_DIR, MODELS_DIR, OUTPUT_DIR, SUBMISSIONS_DIR
+from .core.registry import getModelNames
 from .workflows.cli import runEvaluate, runPredict, runTrain, selectedModels, showMetrics
-
-MODEL_NAMES = ("knn", "dtl", "logistic_regression", "svm", "naive_bayes")
 
 
 class CliParser(argparse.ArgumentParser):
@@ -62,7 +61,7 @@ def createParser():
     }
     for name, description in descriptions.items():
         command = commands.add_parser(name, help=description, description=description)
-        command.add_argument("--model", nargs="+", choices=("all",) + MODEL_NAMES, default=["all"])
+        command.add_argument("--model", nargs="+", choices=("all",) + getModelNames(), default=["all"])
         training = name in ("train", "run", "compare")
         command.add_argument(
             "--input", type=Path, required=name == "evaluate",
@@ -135,7 +134,7 @@ def addTrainingArguments(command):
 
 def modelParameters(args):
     names = selectedModels(args)
-    names = list(MODEL_NAMES) if names is None else names
+    names = list(getModelNames()) if names is None else names
     parameters = {
         "knn": {"k": args.k},
         "logistic_regression": {

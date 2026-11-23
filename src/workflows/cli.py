@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split as trainTestSplit
 from ..algorithms.logistic_regression.bonus import visualizeBonus
 from ..algorithms.logistic_regression.bonus.visualization import checkVideoWriter
 from ..core.config import MEDIA_DIR
+from ..core.registry import validateModelNames
 from ..core.serialization import loadModel, saveModel
 from ..processing.pipeline import runPreprocessing
 from .compare import compare
@@ -37,9 +38,7 @@ def selectedModels(args):
         if len(args.model) != 1:
             raise ValueError("Pilihan all tidak boleh digabung dengan nama model lain.")
         return None
-    if len(set(args.model)) != len(args.model):
-        raise ValueError("Nama model tidak boleh berulang.")
-    return args.model
+    return validateModelNames(args.model)
 
 
 def runTrain(args, modelParameters):

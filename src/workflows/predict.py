@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 
 from ..core.config import MODELS_DIR, SUBMISSIONS_DIR
+from ..core.registry import validateModelNames
 from ..core.serialization import loadModel
-from .train import validateFeatures, validateModelNames, validateModelParameters
+from .train import validateFeatures, validateModelParameters
 
 
 def predict(
@@ -22,15 +23,8 @@ def predict(
     targetColumn="is_canceled",
     idColumn="id",
 ) -> dict[str, np.ndarray]:
-    predictors = {
-        "knn": predictKNN,
-        "dtl": predictDTL,
-        "logistic_regression": predictLogRes,
-        "svm": predictSVM,
-        "naive_bayes": predictBayes,
-    }
     if models is None:
-        names = validateModelNames(modelNames, predictors)
+        names = validateModelNames(modelNames)
         models = {}
         for name in names:
             path = Path(modelDir) / f"{name}.pkl"
@@ -41,7 +35,7 @@ def predict(
     else:
         if not isinstance(models, Mapping):
             raise TypeError("models harus berupa pemetaan nama model ke model terlatih.")
-        names = validateModelNames(list(models) if modelNames is None else modelNames, predictors)
+        names = validateModelNames(list(models) if modelNames is None else modelNames)
         if any(name not in models for name in names):
             raise ValueError("Semua model yang dipilih harus tersedia pada models.")
     if not names:
@@ -54,7 +48,7 @@ def predict(
         if not callable(getattr(model, "predict", None)):
             raise TypeError(f"Model {name!r} tidak memiliki fungsi prediksi.")
         values = prepareFeatures(model, X)
-        result = predictors[name](model, values, **parameters.get(name, {}))
+        result = model.predict(values, **parameters.get(name, {}))
         predictions[name] = validatePrediction(result, len(values))
     for name, result in predictions.items():
         savePrediction(
@@ -66,26 +60,6 @@ def predict(
             idColumn=idColumn,
         )
     return predictions
-
-
-def predictDTL(model, X, **parameters):
-    return model.predict(X, **parameters)
-
-
-def predictKNN(model, X, **parameters):
-    return model.predict(X, **parameters)
-
-
-def predictLogRes(model, X, **parameters):
-    return model.predict(X, **parameters)
-
-
-def predictBayes(model, X, **parameters):
-    return model.predict(X, **parameters)
-
-
-def predictSVM(model, X, **parameters):
-    return model.predict(X, **parameters)
 
 
 def prepareFeatures(model, X) -> np.ndarray:

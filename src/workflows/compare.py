@@ -9,8 +9,9 @@ import pandas as pd
 
 from ..algorithms.sklearn_baselines import getBaseline
 from ..core.config import METRICS_DIR
+from ..core.registry import validateModelNames
 from ..evaluation import evaluateMetrics
-from .train import validateFeatures, validateModelNames, validateModelParameters
+from .train import validateFeatures, validateModelParameters
 
 
 def baselineOptions(modelName, parameters):
@@ -73,10 +74,9 @@ def compare(
     threshold=0.5,
     outputDir=METRICS_DIR,
 ) -> pd.DataFrame:
-    available = ("knn", "dtl", "logistic_regression", "svm", "naive_bayes")
     if not isinstance(results, Mapping) or not results:
         raise TypeError("results harus memetakan nama model ke prediksi from scratch dan tidak boleh kosong.")
-    names = validateModelNames(list(results), available)
+    names = validateModelNames(list(results))
     parameters = validateModelParameters(modelParameters, names)
     overrides = validateModelParameters(baselineParameters, names)
     if (

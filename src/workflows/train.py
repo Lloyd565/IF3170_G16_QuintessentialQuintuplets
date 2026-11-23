@@ -4,24 +4,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ..algorithms.dtl import dtl
-from ..algorithms.knn import KNN
-from ..algorithms.logistic_regression import logisticRegression
-from ..algorithms.naive_bayes import naive_bayes as naiveBayes
-from ..algorithms.svm import svm
 from ..core.config import MODELS_DIR
+from ..core.registry import getTrainer, validateModelNames
 from ..core.serialization import saveModel
 
 
 def train(X, y, *, modelNames=None, modelParameters=None, modelDir=MODELS_DIR) -> dict:
-    trainers = {
-        "knn": (trainKNN, saveKNNModel),
-        "dtl": (trainDTL, saveDTLModel),
-        "logistic_regression": (trainLogRes, saveLogResModel),
-        "svm": (trainSVM, saveSVMModel),
-        "naive_bayes": (trainBayes, saveBayesModel),
-    }
-    names = validateModelNames(modelNames, trainers)
+    names = validateModelNames(modelNames)
     parameters = validateModelParameters(modelParameters, names)
     values = validateFeatures(X)
     target = np.asarray(y)
@@ -36,7 +25,7 @@ def train(X, y, *, modelNames=None, modelParameters=None, modelDir=MODELS_DIR) -
     models = {}
     for name in names:
         try:
-            model = trainers[name][0](values.copy(), target.copy(), **parameters.get(name, {}))
+            model = getTrainer(name)(values.copy(), target.copy(), **parameters.get(name, {}))
         except NotImplementedError:
             continue
         if not callable(getattr(model, "predict", None)):
@@ -47,65 +36,8 @@ def train(X, y, *, modelNames=None, modelParameters=None, modelDir=MODELS_DIR) -
     if not models:
         raise NotImplementedError("Belum ada algoritma yang tersedia untuk dilatih.")
     for name, model in models.items():
-        trainers[name][1](model, modelDir)
+        saveModel(model, Path(modelDir) / f"{name}.pkl")
     return models
-
-
-def trainDTL(X, y, **parameters):
-    return dtl(X, y, **parameters)
-
-
-def trainKNN(X, y, **parameters):
-    return KNN(**parameters).fit(np.asarray(X), np.asarray(y))
-
-
-def trainLogRes(X, y, **parameters):
-    return logisticRegression(X, y, **parameters)
-
-
-def trainBayes(X, y, **parameters):
-    return naiveBayes(X, y, **parameters)
-
-
-def trainSVM(X, y, **parameters):
-    return svm(X, y, **parameters)
-
-
-def saveDTLModel(model, modelDir=MODELS_DIR) -> Path:
-    return saveModel(model, Path(modelDir) / "dtl.pkl")
-
-
-def saveKNNModel(model, modelDir=MODELS_DIR) -> Path:
-    return saveModel(model, Path(modelDir) / "knn.pkl")
-
-
-def saveLogResModel(model, modelDir=MODELS_DIR) -> Path:
-    return saveModel(model, Path(modelDir) / "logistic_regression.pkl")
-
-
-def saveBayesModel(model, modelDir=MODELS_DIR) -> Path:
-    return saveModel(model, Path(modelDir) / "naive_bayes.pkl")
-
-
-def saveSVMModel(model, modelDir=MODELS_DIR) -> Path:
-    return saveModel(model, Path(modelDir) / "svm.pkl")
-
-
-def validateModelNames(modelNames, available) -> list[str]:
-    if modelNames is None:
-        names = list(available)
-    elif isinstance(modelNames, str):
-        names = [modelNames]
-    else:
-        try:
-            names = list(modelNames)
-        except TypeError as error:
-            raise TypeError("modelNames harus berupa nama model atau kumpulan nama model.") from error
-    if not names or any(not isinstance(name, str) or name not in available for name in names):
-        raise ValueError("Nama model harus berupa knn, dtl, logistic_regression, svm, atau naive_bayes.")
-    if len(set(names)) != len(names):
-        raise ValueError("Nama model tidak boleh berulang.")
-    return names
 
 
 def validateModelParameters(modelParameters, names) -> dict:
