@@ -8,6 +8,7 @@ import sys
 from .core.config import DATA_DIR, MEDIA_DIR, METRICS_DIR, MODELS_DIR, OUTPUT_DIR, SUBMISSIONS_DIR
 from .core.registry import getModelNames
 from .workflows.cli import runEvaluate, runPredict, runTrain, selectedModels, showMetrics
+from .workflows.interactive import interactiveArguments
 
 
 class CliParser(argparse.ArgumentParser):
@@ -189,79 +190,6 @@ def validateSVMParameters(parameters):
     seed = parameters["random_state"]
     if seed is not None and (isinstance(seed, bool) or not isinstance(seed, Integral) or seed < 0):
         raise ValueError("random_state SVM harus berupa bilangan bulat nonnegatif atau None.")
-
-
-def askBoolean(message, default):
-    answer = input(message).strip().lower()
-    if not answer:
-        return default
-    if answer not in ("y", "yes", "ya", "n", "no", "tidak"):
-        raise ValueError("Jawaban harus berupa ya atau tidak.")
-    return answer in ("y", "yes", "ya")
-
-
-def interactiveArguments():
-    command = input("Perintah run/train/predict/evaluate/compare [run]: ").strip() or "run"
-    if command not in ("run", "train", "predict", "evaluate", "compare"):
-        raise ValueError("Perintah harus berupa run, train, predict, evaluate, atau compare.")
-    arguments = [command]
-    path = input("Lokasi CSV berlabel untuk evaluasi: " if command == "evaluate" else "Lokasi CSV input [default data/]: ").strip()
-    if command == "evaluate" and not path:
-        raise ValueError("Evaluasi membutuhkan lokasi CSV yang memuat label asli.")
-    if path:
-        arguments.extend(("--input", path))
-    names = input("Model, pisahkan dengan koma atau spasi [all]: ").strip() or "all"
-    arguments.extend(("--model", *names.replace(",", " ").split()))
-    if command in ("train", "run", "compare"):
-        if not askBoolean("Gunakan cleaning? [ya]: ", True):
-            arguments.append("--no-cleaning")
-        if not askBoolean("Gunakan transformation? [ya]: ", True):
-            arguments.append("--no-transformation")
-        count = input("Jumlah fitur mRMR [kosong untuk semua]: ").strip()
-        if count:
-            arguments.extend(("--features", count))
-        components = input("Komponen PCA, int atau variansi 0-1 [kosong untuk tanpa PCA]: ").strip()
-        if components:
-            arguments.extend(("--components", components))
-        if askBoolean("Gunakan oversampling? [tidak]: ", False):
-            arguments.append("--oversample")
-        size = input("Proporsi validasi [0.2]: ").strip()
-        if size:
-            arguments.extend(("--validation-size", size))
-        parameters = input('Parameter model JSON, contoh {"knn":{"k":5}} [default]: ').strip()
-        if parameters:
-            arguments.extend(("--model-params", parameters))
-        compareModels = command == "compare" or askBoolean("Bandingkan dengan scikit-learn? [tidak]: ", False)
-        if compareModels:
-            arguments.append("--compare")
-            baseline = input("Parameter acuan scikit-learn JSON [sesuaikan dengan model sendiri]: ").strip()
-            if baseline:
-                arguments.extend(("--baseline-params", baseline))
-        selected = names.replace(",", " ").split()
-        if "all" in selected or "logistic_regression" in selected:
-            if askBoolean("Buat video bonus Logistic Regression? [tidak]: ", False):
-                arguments.append("--logres-bonus")
-                feature = input("Nama atau indeks kolom untuk lintasan parameter [0]: ").strip()
-                if feature:
-                    arguments.extend(("--bonus-feature", feature))
-        if "all" in selected or "naive_bayes" in selected:
-            if askBoolean("Buat graf bonus Naive Bayes? [tidak]: ", False):
-                arguments.append("--naive-bayes-bonus")
-                output = input("Lokasi gambar bonus Naive Bayes [output/media/naive_bayes_graph.png]: ").strip()
-                if output:
-                    arguments.extend(("--naive-bayes-bonus-output", output))
-    if command == "run":
-        path = input("Lokasi CSV test [data/test.csv]: ").strip()
-        if path:
-            arguments.extend(("--test-input", path))
-    if command in ("predict", "evaluate"):
-        if askBoolean("Data sudah dipreproses sesuai model? [tidak]: ", False):
-            arguments.append("--prepared")
-    if command in ("run", "predict"):
-        template = input("Lokasi sample submission [kosong untuk tanpa templat]: ").strip()
-        if template:
-            arguments.extend(("--template", template))
-    return arguments
 
 
 def main(argv=None):
