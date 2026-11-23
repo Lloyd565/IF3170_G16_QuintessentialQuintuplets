@@ -1,6 +1,5 @@
-"""Placeholder for optional DTL visualizations and other bonus work."""
+from .graph import draw_tree
 
+visualize_bonus = draw_tree
 
-def visualize_bonus(*args, **kwargs):
-    """Create an optional DTL visualization whose scope will be defined later."""
-    raise NotImplementedError
+__all__ = ["draw_tree", "visualize_bonus"]

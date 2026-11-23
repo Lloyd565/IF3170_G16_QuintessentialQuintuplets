@@ -44,3 +44,29 @@ Stratified 10-fold CV (seed 42, preprocessing di-fit pada training tiap fold)
 memberi rata-rata Macro F1 0.8352 untuk profil DTL dengan depth 14, leaf 2, dan
 `min_impurity_decrease=0.0001`, dibanding baseline 0.8284. Ini hasil validasi
 lokal; skor Kaggle dihitung terpisah pada data test.
+
+## Bonus: visualisasi tree
+
+```python
+from src.algorithms.dtl.bonus import draw_tree
+
+figure = draw_tree(
+    model,
+    feature_names=state["outputColumns"],
+    save_path="output/visualizations/dtl_top_10.png",
+    top_n=10,
+)
+```
+
+`top_n` membatasi jumlah node percabangan yang dibuka, mulai dari akar secara
+breadth-first (per tingkat, kiri ke kanan), bukan jumlah tingkat kedalaman.
+Node anak tetap ditampilkan; subtree yang belum dibuka diberi kotak putus-putus
+berlabel `Subtree hidden`. Gunakan `top_n=None` untuk menampilkan seluruh tree.
+Nama fitur harus mengikuti urutan kolom setelah preprocessing. Jika tidak diberikan,
+nama menggunakan indeks `x[i]`.
+
+Gambar menampilkan kondisi split, entropy, jumlah sampel, distribusi kelas `[0, 1]`,
+dan prediksi pada leaf. Cabang `True` berarti `<=`, sedangkan `False` berarti `>`.
+Ekstensi `save_path` menentukan format gambar, misalnya PNG, SVG, atau PDF.
+Fungsi mengembalikan `Figure` untuk ditampilkan di notebook dan tidak mengubah model.
+`visualize_bonus` tersedia sebagai alias `draw_tree`.
