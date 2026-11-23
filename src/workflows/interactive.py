@@ -269,6 +269,12 @@ def interactiveArguments():
             arguments.append("--naive-bayes-bonus")
             output = askText("Lokasi gambar bonus Naive Bayes", "output/media/naive_bayes_graph.png", MEDIA_DIR / "naive_bayes_graph.png")
             arguments.extend(("--naive-bayes-bonus-output", output))
+        if "svm" in selected and askBoolean("Buat gambar bonus SVM (bidang pemisah tiap kernel)?", False):
+            arguments.append("--svm-bonus")
+            sample = askNumber("Jumlah sampel untuk gambar SVM", "200, 300, 500", 300, integer=True, minimum=2)
+            arguments.extend(("--svm-bonus-sample", str(sample)))
+            output = askText("Lokasi gambar bonus SVM", "output/media/svm_boundaries.png", MEDIA_DIR / "svm_boundaries.png")
+            arguments.extend(("--svm-bonus-output", output))
     if command == "run":
         path = askText("Lokasi CSV test", "data/test.csv", DATA_DIR / "test.csv")
         arguments.extend(("--test-input", path))

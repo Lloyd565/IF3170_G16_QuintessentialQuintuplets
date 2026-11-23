@@ -147,6 +147,14 @@ def addTrainingArguments(command):
                          help="DTL tree output path (.png, .svg, or .pdf).")
     dtlBonus.add_argument("--dtl-bonus-top-n", dest="dtlBonusTopN", type=int, default=10,
                          help="Maximum number of split nodes shown in the DTL tree (default: 10).")
+    svmBonus = command.add_argument_group("svm bonus")
+    svmBonus.add_argument("--svm-bonus", dest="svmBonus", action="store_true",
+                          help="Plot boundary, margin and support vectors for each SVM kernel on 2D PCA.")
+    svmBonus.add_argument("--svm-bonus-output", dest="svmBonusOutput", type=Path,
+                          default=MEDIA_DIR / "svm_boundaries.png",
+                          help="SVM boundary image output path (.png, .svg, or .pdf).")
+    svmBonus.add_argument("--svm-bonus-sample", dest="svmBonusSample", type=int, default=300,
+                          help="Training rows (stratified) used for the 2D plot (default: 300).")
 
 
 def modelParameters(args):
