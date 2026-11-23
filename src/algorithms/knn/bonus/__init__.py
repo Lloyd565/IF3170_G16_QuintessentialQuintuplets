@@ -1,6 +1,5 @@
-"""Placeholder for optional KNN visualizations and other bonus work."""
+"""Public entry points for KNN bonus functions."""
 
+from .cost_sensitive import evaluate_cost, predict_cost_sensitive
 
-def visualize_bonus(*args, **kwargs):
-    """Create an optional KNN visualization whose scope will be defined later."""
-    raise NotImplementedError
+__all__ = ["evaluate_cost", "predict_cost_sensitive"]
