@@ -139,6 +139,14 @@ def addTrainingArguments(command):
     bayesBonus.add_argument("--naive-bayes-bonus-output", dest="naiveBayesBonusOutput", type=Path,
                            default=MEDIA_DIR / "naive_bayes_graph.png",
                            help="Naive Bayes graph output path (.png, .svg, or .pdf).")
+    dtlBonus = command.add_argument_group("decision tree bonus")
+    dtlBonus.add_argument("--dtl-bonus", dest="dtlBonus", action="store_true",
+                         help="Generate the DTL tree visualization after training.")
+    dtlBonus.add_argument("--dtl-bonus-output", dest="dtlBonusOutput", type=Path,
+                         default=MEDIA_DIR / "dtl_tree.png",
+                         help="DTL tree output path (.png, .svg, or .pdf).")
+    dtlBonus.add_argument("--dtl-bonus-top-n", dest="dtlBonusTopN", type=int, default=10,
+                         help="Maximum number of split nodes shown in the DTL tree (default: 10).")
 
 
 def modelParameters(args):

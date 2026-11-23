@@ -73,6 +73,15 @@ def runTrain(args, modelParameters):
         names = selectedModels(args)
         if names is not None and "naive_bayes" not in names:
             raise ValueError("Bonus Naive Bayes membutuhkan pemilihan model naive_bayes.")
+    dtlBonusRequested = getattr(args, "dtlBonus", False)
+    dtlBonusOutput = getattr(args, "dtlBonusOutput", MEDIA_DIR / "dtl_tree.png")
+    dtlBonusTopN = getattr(args, "dtlBonusTopN", 10)
+    if dtlBonusRequested:
+        names = selectedModels(args)
+        if names is not None and "dtl" not in names:
+            raise ValueError("Bonus DTL membutuhkan pemilihan model dtl.")
+        if dtlBonusTopN < 1:
+            raise ValueError("Jumlah node percabangan bonus DTL harus lebih besar dari 0.")
     frame = readData(args.input, args.idColumn)
     if args.target not in frame:
         raise ValueError(f"Kolom target tidak ditemukan: {args.target}.")
@@ -140,6 +149,14 @@ def runTrain(args, modelParameters):
             outputPath=bayesBonusOutput,
         )
         print(f"Naive Bayes graph saved to {graph}")
+    if dtlBonusRequested:
+        from ..algorithms.dtl.bonus import visualizeBonus as visualizeTreeBonus
+
+        visualizeTreeBonus(
+            models["dtl"], featureNames=features.columns,
+            outputPath=dtlBonusOutput, topN=dtlBonusTopN,
+        )
+        print(f"DTL tree saved to {dtlBonusOutput}")
     return models
 
 

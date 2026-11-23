@@ -253,6 +253,12 @@ def interactiveArguments():
             if askBoolean("Ubah parameter acuan scikit-learn melalui JSON?", False):
                 baseline = askParameters("Parameter acuan scikit-learn", selected, baseline=True)
                 arguments.extend(("--baseline-params", json.dumps(baseline)))
+        if "dtl" in selected and askBoolean("Buat gambar bonus Decision Tree (DTL)?", False):
+            arguments.append("--dtl-bonus")
+            topN = askNumber("Jumlah maksimum node percabangan pada gambar DTL", "5, 10, 20", 10, integer=True, minimum=1)
+            arguments.extend(("--dtl-bonus-top-n", str(topN)))
+            output = askText("Lokasi gambar bonus DTL", "output/media/dtl_tree.png", MEDIA_DIR / "dtl_tree.png")
+            arguments.extend(("--dtl-bonus-output", output))
         if "logistic_regression" in selected and askBoolean("Buat video bonus Logistic Regression?", False):
             arguments.append("--logres-bonus")
             feature = askText("Nama atau indeks fitur untuk lintasan parameter", "0, 1, days_before_arrival", "0")
