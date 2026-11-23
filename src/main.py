@@ -117,6 +117,8 @@ def addTrainingArguments(command):
     models.add_argument("--tol", type=float, default=1e-3)
     models.add_argument("--max-passes", dest="maxPasses", type=int, default=5)
     models.add_argument("--max-iter", dest="maxIter", type=int, default=100000)
+    models.add_argument("--class-weight", dest="classWeight", choices=("none", "balanced"), default="none",
+                        help="SVM: balanced menaikkan C kelas minoritas sebesar n / (2 * n_kelas).")
 
 
 def modelParameters(args):
@@ -137,6 +139,7 @@ def modelParameters(args):
             "C": args.C, "kernel": args.kernel, "degree": args.degree, "gamma": args.gamma,
             "coef0": args.coef0, "tol": args.tol, "max_passes": args.maxPasses,
             "max_iter": args.maxIter, "random_state": args.randomState,
+            "class_weight": None if args.classWeight == "none" else args.classWeight,
         },
     }
     parameters = {name: values for name, values in parameters.items() if name in names}
