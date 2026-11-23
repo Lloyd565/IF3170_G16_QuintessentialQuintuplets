@@ -74,6 +74,8 @@ def createParser():
         command.add_argument("--output-dir", dest="outputDir", type=Path,
                             default=OUTPUT_DIR / "validation" if name == "evaluate" else SUBMISSIONS_DIR)
         command.add_argument("--threshold", type=float, help="Logistic regression prediction threshold.")
+        command.add_argument("--cost-sensitive", dest="costSensitive", action=argparse.BooleanOptionalAction,
+                            default=False, help="Use a 2/3 probability threshold for all models except SVM; overrides --threshold.")
         if name in ("train", "run", "compare", "evaluate"):
             command.add_argument("--metrics-dir", dest="metricsDir", type=Path, default=METRICS_DIR)
         if training:

@@ -114,6 +114,7 @@ def runTrain(args, modelParameters):
         predictions = predict(
             validFeatures, models, outputDir=args.validationOutput, ids=ids,
             modelParameters=predictionParameters(args, list(models)),
+            costSensitive=getattr(args, "costSensitive", False),
             targetColumn=args.target, idColumn=args.idColumn,
         )
         results = evaluate(predictions, validTarget, outputDir=args.metricsDir)
@@ -125,6 +126,7 @@ def runTrain(args, modelParameters):
                 modelParameters={name: values for name, values in (modelParameters or {}).items() if name in models},
                 baselineParameters=baselineParameters,
                 threshold=0.5 if args.threshold is None else args.threshold,
+                costSensitive=getattr(args, "costSensitive", False),
                 outputDir=args.metricsDir,
             )
             showComparison(report)
@@ -195,6 +197,7 @@ def runPredict(args):
     return predict(
         features, modelNames=names, modelParameters=predictionParameters(args, names), modelDir=args.modelDir,
         outputDir=args.outputDir, ids=ids, template=template,
+        costSensitive=getattr(args, "costSensitive", False),
         targetColumn=args.target, idColumn=args.idColumn,
     )
 
@@ -211,6 +214,7 @@ def runEvaluate(args):
     predictions = predict(
         features, modelNames=names, modelParameters=predictionParameters(args, names),
         modelDir=args.modelDir, outputDir=args.outputDir, ids=ids,
+        costSensitive=getattr(args, "costSensitive", False),
         targetColumn=args.target, idColumn=args.idColumn,
     )
     return evaluate(predictions, target, outputDir=args.metricsDir)

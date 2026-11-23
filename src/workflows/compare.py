@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ..algorithms.knn.bonus import predict_cost_sensitive as predictCostSensitive
 from ..algorithms.sklearn_baselines import getBaseline
 from ..core.config import METRICS_DIR
 from ..core.registry import validateModelNames
@@ -72,6 +73,7 @@ def compare(
     modelParameters=None,
     baselineParameters=None,
     threshold=0.5,
+    costSensitive=False,
     outputDir=METRICS_DIR,
 ) -> pd.DataFrame:
     if not isinstance(results, Mapping) or not results:
@@ -100,9 +102,10 @@ def compare(
         model = getBaseline(name, **options)
         try:
             model.fit(trainingValues.copy(), trainingLabels.copy())
-            if name == "logistic_regression":
+            if name == "logistic_regression" or costSensitive and name != "svm":
                 positive = int(np.flatnonzero(model.classes_ == 1)[0])
-                prediction = (model.predict_proba(testValues)[:, positive] >= threshold).astype(int)
+                probabilities = model.predict_proba(testValues)[:, positive]
+                prediction = predictCostSensitive(probabilities) if costSensitive else (probabilities >= threshold).astype(int)
             else:
                 prediction = model.predict(testValues)
         except (ValueError, TypeError) as error:

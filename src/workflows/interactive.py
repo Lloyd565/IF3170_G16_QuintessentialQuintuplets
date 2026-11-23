@@ -237,7 +237,12 @@ def interactiveArguments():
     else:
         if askBoolean("Data sudah dipreproses sesuai model?", False):
             arguments.append("--prepared")
-    if "logistic_regression" in selected:
+    costSensitive = any(name != "svm" for name in selected) and askBoolean(
+        "Gunakan cost-sensitive (biaya FP dua kali FN; ambang 2/3 untuk semua model kecuali SVM)?", False,
+    )
+    if costSensitive:
+        arguments.append("--cost-sensitive")
+    if "logistic_regression" in selected and not costSensitive:
         threshold = askNumber("Ambang prediksi Logistic Regression", "0.4, 0.5, 0.6", 0.5, minimum=0, maximum=1)
         if threshold != 0.5:
             arguments.extend(("--threshold", str(threshold)))

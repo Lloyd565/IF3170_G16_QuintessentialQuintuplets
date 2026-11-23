@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ..algorithms.knn.bonus import predict_cost_sensitive as predictCostSensitive
 from ..core.config import MODELS_DIR, SUBMISSIONS_DIR
 from ..core.registry import validateModelNames
 from ..core.serialization import loadModel
@@ -16,6 +17,7 @@ def predict(
     *,
     modelNames=None,
     modelParameters=None,
+    costSensitive=False,
     modelDir=MODELS_DIR,
     outputDir=SUBMISSIONS_DIR,
     ids=None,
@@ -48,7 +50,11 @@ def predict(
         if not callable(getattr(model, "predict", None)):
             raise TypeError(f"Model {name!r} tidak memiliki fungsi prediksi.")
         values = prepareFeatures(model, X)
-        result = model.predict(values, **parameters.get(name, {}))
+        if costSensitive and name != "svm":
+            probabilities = model.predictProba(values) if name == "logistic_regression" else model.predict_proba(values)
+            result = predictCostSensitive(np.asarray(probabilities)[:, 1])
+        else:
+            result = model.predict(values, **parameters.get(name, {}))
         predictions[name] = validatePrediction(result, len(values))
     for name, result in predictions.items():
         savePrediction(
