@@ -29,6 +29,11 @@ CAT_COLS = [
     "booking_channel",
 ]
 
+CONTINUOUS_COLS = [
+    "days_before_arrival",
+    "nightly_rate_idr",
+]
+
 NUM_COLS = [
     "num_adults",
     "num_children",

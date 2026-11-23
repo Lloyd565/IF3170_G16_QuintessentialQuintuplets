@@ -11,6 +11,9 @@ import pandas as pd
 def mrmr(
     X: pd.DataFrame | np.ndarray,
     y: pd.Series | np.ndarray,
+    *,
+    continuousColumns: Sequence[Hashable] | None = None,
+    binCount: int = 10,
 ) -> dict[Hashable, float]:
     if np.ndim(X) != 2:
         raise ValueError("X harus berupa matriks fitur dua dimensi.")
@@ -27,6 +30,7 @@ def mrmr(
         if not X.index.equals(y.index):
             raise ValueError("Indeks baris X dan y harus sama dan memiliki urutan yang sama.")
 
+    frame = discretizeContinuous(frame, continuousColumns, binCount=binCount)
     columns = [
         validateColumn(frame.iloc[:, index])
         for index in range(frame.shape[1])
@@ -44,6 +48,50 @@ def mrmr(
 
     ranking = iterateMID(relevance, redundancy)
     return {frame.columns[index]: score for index, score in ranking.items()}
+
+
+def discretizeContinuous(
+    X: pd.DataFrame | np.ndarray,
+    continuousColumns: Sequence[Hashable] | None = None,
+    *,
+    binCount: int = 10,
+) -> pd.DataFrame:
+    if np.ndim(X) != 2:
+        raise ValueError("X harus berupa matriks fitur dua dimensi.")
+    frame = X.copy() if isinstance(X, pd.DataFrame) else pd.DataFrame(X).copy()
+    if frame.empty:
+        raise ValueError("X harus memiliki setidaknya satu baris dan satu fitur.")
+    if not frame.columns.is_unique:
+        raise ValueError("Nama kolom pada X harus unik.")
+    if isinstance(binCount, bool) or not isinstance(binCount, Integral):
+        raise TypeError("binCount harus berupa bilangan bulat.")
+    if binCount < 2:
+        raise ValueError("binCount harus lebih besar dari atau sama dengan 2.")
+    if isinstance(continuousColumns, (str, bytes)):
+        raise TypeError("continuousColumns harus berupa kumpulan nama atau indeks kolom.")
+    try:
+        columns = [] if continuousColumns is None else list(continuousColumns)
+    except TypeError as error:
+        raise TypeError("continuousColumns harus berupa kumpulan nama atau indeks kolom.") from error
+    if any(not isinstance(column, Hashable) for column in columns):
+        raise TypeError("Nama atau indeks kolom kontinu harus dapat digunakan sebagai kunci.")
+    if len(columns) != len(set(columns)):
+        raise ValueError("Kolom kontinu tidak boleh berulang.")
+    missing = [column for column in columns if column not in frame.columns]
+    if missing:
+        raise ValueError(f"Kolom kontinu tidak ditemukan: {missing}.")
+
+    for column in columns:
+        values = validateColumn(frame[column]).astype(float)
+        uniqueValues = np.unique(values)
+        if len(uniqueValues) <= binCount:
+            classes = np.searchsorted(uniqueValues, values)
+        else:
+            quantiles = np.linspace(0, 1, binCount + 1)[1:-1]
+            boundaries = np.unique(np.quantile(values, quantiles))
+            classes = np.searchsorted(boundaries, values, side="left")
+        frame[column] = classes
+    return frame
 
 
 def topK(scores: Mapping[Hashable, float], k: int) -> list[Hashable]:

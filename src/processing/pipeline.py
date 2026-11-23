@@ -1,6 +1,7 @@
 import pandas as pd
 
 from .cleaning import cleaning
+from .cleaning.validation import CONTINUOUS_COLS
 from .dimensionality_reduction import dimensionality_reduction
 from .dtl import DTLPreprocessor
 from .feature_selection import featureSelection
@@ -16,6 +17,8 @@ def runPreprocessing(
     clean=True,
     transform=True,
     featureCount=None,
+    continuousColumns=None,
+    binCount=10,
     components=None,
     oversample=False,
     dtlPreprocessing=False,
@@ -61,7 +64,15 @@ def runPreprocessing(
         if featureCount is not None:
             if target is None:
                 raise ValueError("Seleksi fitur membutuhkan label pelatihan.")
-            features, _ = featureSelection(features, target, featureCount)
+            selectionColumns = continuousColumns
+            if selectionColumns is None:
+                selectionColumns = [column for column in CONTINUOUS_COLS if column in features.columns]
+                if dtlPreprocessor is not None:
+                    selectionColumns.append("booking_ordinal")
+            features, _ = featureSelection(
+                features, target, featureCount,
+                continuousColumns=selectionColumns, binCount=binCount,
+            )
         state["selectedColumns"] = features.columns.tolist()
     else:
         features = features.loc[:, state.get("selectedColumns", state["outputColumns"])].copy()
