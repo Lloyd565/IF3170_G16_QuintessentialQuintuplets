@@ -4,6 +4,9 @@ from pathlib import Path
 import pandas as pd
 from sklearn.model_selection import train_test_split as trainTestSplit
 
+from ..algorithms.logistic_regression.bonus import visualizeBonus
+from ..algorithms.logistic_regression.bonus.visualization import checkVideoWriter
+from ..core.config import MEDIA_DIR
 from ..core.serialization import loadModel, saveModel
 from ..processing.pipeline import runPreprocessing
 from .evaluate import evaluate
@@ -46,6 +49,17 @@ def runTrain(args, modelParameters):
     if args.randomState < 0:
         raise ValueError("randomState tidak boleh negatif.")
     predictionParameters(args, selectedModels(args))
+    bonusRequested = getattr(args, "logresBonus", False)
+    bonusOutput = getattr(args, "bonusOutput", MEDIA_DIR / "logistic_regression_training.mp4")
+    if bonusRequested:
+        names = selectedModels(args)
+        if names is not None and "logistic_regression" not in names:
+            raise ValueError("Bonus membutuhkan pemilihan model logistic_regression.")
+        if Path(bonusOutput).suffix.lower() != ".mp4":
+            raise ValueError("Video bonus harus menggunakan ekstensi .mp4.")
+        checkVideoWriter()
+        modelParameters = {name: dict(values) for name, values in (modelParameters or {}).items()}
+        modelParameters.setdefault("logistic_regression", {})["recordHistory"] = True
     frame = readData(args.input, args.idColumn)
     if args.target not in frame:
         raise ValueError(f"Kolom target tidak ditemukan: {args.target}.")
@@ -74,6 +88,8 @@ def runTrain(args, modelParameters):
         validFeatures, validTarget, state = runPreprocessing(
             validFeatures, validTarget, state=state, name="validation",
         )
+    if bonusRequested:
+        bonusIndex = resolveBonusFeature(features.columns, getattr(args, "bonusFeature", "0"))
     models = train(
         features, target, modelNames=selectedModels(args),
         modelParameters=modelParameters, modelDir=args.modelDir,
@@ -90,7 +106,23 @@ def runTrain(args, modelParameters):
         results = evaluate(predictions, validTarget, outputDir=args.metricsDir)
         showMetrics(results)
         print(f"Validation metrics saved to {Path(args.metricsDir) / 'metrics.csv'}")
+    if bonusRequested:
+        video = visualizeBonus(models["logistic_regression"], bonusOutput, featureIndex=bonusIndex)
+        print(f"Training video saved to {video}")
     return models
+
+
+def resolveBonusFeature(columns, selector):
+    names = list(columns)
+    if selector in names:
+        return names.index(selector)
+    try:
+        index = int(selector)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Kolom bonus harus berupa nama atau indeks fitur setelah preprocessing.") from error
+    if not 0 <= index < len(names):
+        raise ValueError("Indeks fitur bonus berada di luar kolom setelah preprocessing.")
+    return index
 
 
 def prepareInference(args, frame=None):

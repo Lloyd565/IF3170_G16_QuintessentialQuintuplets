@@ -5,7 +5,7 @@ from numbers import Integral, Real
 from pathlib import Path
 import sys
 
-from .core.config import DATA_DIR, METRICS_DIR, MODELS_DIR, OUTPUT_DIR, SUBMISSIONS_DIR
+from .core.config import DATA_DIR, MEDIA_DIR, METRICS_DIR, MODELS_DIR, OUTPUT_DIR, SUBMISSIONS_DIR
 from .workflows.cli import runEvaluate, runPredict, runTrain, selectedModels, showMetrics
 
 MODEL_NAMES = ("knn", "dtl", "logistic_regression", "svm", "naive_bayes")
@@ -117,6 +117,13 @@ def addTrainingArguments(command):
     models.add_argument("--tol", type=float, default=1e-3)
     models.add_argument("--max-passes", dest="maxPasses", type=int, default=5)
     models.add_argument("--max-iter", dest="maxIter", type=int, default=100000)
+    bonus = command.add_argument_group("logistic regression bonus")
+    bonus.add_argument("--logres-bonus", dest="logresBonus", action="store_true",
+                       help="Record parameter history and generate an MP4 training video.")
+    bonus.add_argument("--bonus-output", dest="bonusOutput", type=Path,
+                       default=MEDIA_DIR / "logistic_regression_training.mp4")
+    bonus.add_argument("--bonus-feature", dest="bonusFeature", default="0",
+                       help="Prepared feature name or zero-based index for the parameter plot.")
 
 
 def modelParameters(args):
@@ -211,6 +218,13 @@ def interactiveArguments():
         parameters = input('Parameter model JSON, contoh {"knn":{"k":5}} [default]: ').strip()
         if parameters:
             arguments.extend(("--model-params", parameters))
+        selected = names.replace(",", " ").split()
+        if "all" in selected or "logistic_regression" in selected:
+            if askBoolean("Buat video bonus Logistic Regression? [tidak]: ", False):
+                arguments.append("--logres-bonus")
+                feature = input("Nama atau indeks kolom untuk lintasan parameter [0]: ").strip()
+                if feature:
+                    arguments.extend(("--bonus-feature", feature))
     if command == "run":
         path = input("Lokasi CSV test [data/test.csv]: ").strip()
         if path:

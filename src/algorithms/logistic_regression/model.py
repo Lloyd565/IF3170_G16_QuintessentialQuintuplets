@@ -14,6 +14,7 @@ def logisticRegression(
     l1Ratio: float = 0.5,
     shuffle: bool = True,
     randomState: int | None = 42,
+    recordHistory: bool = False,
 ) -> LogisticRegression:
     return iterateSGA(
         X,
@@ -25,4 +26,5 @@ def logisticRegression(
         l1Ratio=l1Ratio,
         shuffle=shuffle,
         randomState=randomState,
+        recordHistory=recordHistory,
     )

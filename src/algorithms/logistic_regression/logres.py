@@ -12,6 +12,9 @@ class LogisticRegression:
     weights: np.ndarray
     bias: float
     lossHistory: list[float]
+    parameterHistory: np.ndarray | None = None
+    trainingFeatures: np.ndarray | None = None
+    trainingTarget: np.ndarray | None = None
 
     def predictProba(self, X: np.ndarray) -> np.ndarray:
         values = validateFeatures(X)
@@ -102,6 +105,7 @@ def iterateSGA(
     l1Ratio: float = 0.5,
     shuffle: bool = True,
     randomState: int | None = 42,
+    recordHistory: bool = False,
 ) -> LogisticRegression:
     values = validateFeatures(X)
     target = validateTarget(y, len(values))
@@ -118,6 +122,8 @@ def iterateSGA(
         raise ValueError("epochs harus berupa bilangan bulat positif.")
     if not isinstance(shuffle, (bool, np.bool_)):
         raise TypeError("shuffle harus berupa nilai boolean.")
+    if not isinstance(recordHistory, (bool, np.bool_)):
+        raise TypeError("recordHistory harus berupa nilai boolean.")
     if randomState is not None:
         if isinstance(randomState, bool) or not isinstance(randomState, Integral) or randomState < 0:
             raise ValueError("randomState harus berupa bilangan bulat nonnegatif atau None.")
@@ -151,6 +157,7 @@ def iterateSGA(
     weights = np.zeros(values.shape[1], dtype=float)
     bias = 0.0
     lossHistory = [logLoss(values @ weights + bias, target, weights, l1Strength, l2Strength)]
+    parameterHistory = [np.concatenate(([bias], weights))] if recordHistory else None
     generator = np.random.default_rng(randomState)
     try:
         with np.errstate(over="raise", invalid="raise", divide="raise"):
@@ -164,12 +171,19 @@ def iterateSGA(
                 if not np.isfinite(loss) or not np.isfinite(weights).all() or not np.isfinite(bias):
                     raise FloatingPointError
                 lossHistory.append(loss)
+                if recordHistory:
+                    parameterHistory.append(np.concatenate(([bias], weights)))
     except FloatingPointError as error:
         raise ValueError(
             "Pelatihan menghasilkan nilai tidak terhingga; "
             "gunakan data yang sudah diskalakan atau learningRate yang lebih kecil."
         ) from error
-    return LogisticRegression(weights=weights, bias=bias, lossHistory=lossHistory)
+    return LogisticRegression(
+        weights=weights, bias=bias, lossHistory=lossHistory,
+        parameterHistory=np.asarray(parameterHistory) if recordHistory else None,
+        trainingFeatures=values.copy() if recordHistory else None,
+        trainingTarget=target.copy() if recordHistory else None,
+    )
 
 
 def logLoss(
