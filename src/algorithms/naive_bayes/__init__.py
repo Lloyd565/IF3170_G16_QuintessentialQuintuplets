@@ -1,5 +1,3 @@
-"""Public placeholder entry point for Naive Bayes."""
+from .model import NaiveBayes, naive_bayes
 
-from .model import naive_bayes
-
-__all__ = ["naive_bayes"]
+__all__ = ["NaiveBayes", "naive_bayes"]

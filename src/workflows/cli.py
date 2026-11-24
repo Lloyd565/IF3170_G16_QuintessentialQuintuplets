@@ -1,0 +1,263 @@
+import csv
+from pathlib import Path
+
+import pandas as pd
+from sklearn.model_selection import train_test_split as trainTestSplit
+
+from ..algorithms.logistic_regression.bonus import visualizeBonus
+from ..algorithms.logistic_regression.bonus.visualization import checkVideoWriter
+from ..algorithms.naive_bayes.bonus import visualizeBonus as visualizeBayesBonus
+from ..core.config import MEDIA_DIR
+from ..core.registry import validateModelNames
+from ..core.serialization import loadModel, saveModel
+from ..processing.pipeline import runPreprocessing
+from .compare import compare
+from .evaluate import evaluate
+from .predict import predict
+from .train import train
+
+
+def readData(path, idColumn):
+    try:
+        with Path(path).open(newline="", encoding="utf-8-sig") as source:
+            columns = next(csv.reader(source), [])
+        if not columns or len(columns) != len(set(columns)):
+            raise ValueError("CSV harus memiliki nama kolom yang tidak kosong dan unik.")
+        frame = pd.read_csv(path, dtype={idColumn: str})
+    except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError) as error:
+        raise ValueError(f"Berkas CSV tidak dapat dibaca: {path}.") from error
+    if frame.empty:
+        raise ValueError("Berkas CSV harus memiliki setidaknya satu baris data.")
+    if idColumn in frame:
+        if frame[idColumn].isna().any() or frame[idColumn].duplicated().any():
+            raise ValueError("Identitas data tidak boleh kosong atau berulang.")
+    return frame
+
+
+def selectedModels(args):
+    if "all" in args.model:
+        if len(args.model) != 1:
+            raise ValueError("Pilihan all tidak boleh digabung dengan nama model lain.")
+        return None
+    return validateModelNames(args.model)
+
+
+def runTrain(args, modelParameters):
+    if args.target == args.idColumn:
+        raise ValueError("Nama kolom target dan identitas harus berbeda.")
+    if not 0 <= args.validationSize < 1:
+        raise ValueError("validationSize harus berada di antara 0 dan 1, tanpa menyertakan 1.")
+    if args.randomState < 0:
+        raise ValueError("randomState tidak boleh negatif.")
+    comparisonRequested = getattr(args, "compareModels", False)
+    baselineParameters = getattr(args, "baselineParams", {})
+    if comparisonRequested and not args.validationSize:
+        raise ValueError("Perbandingan membutuhkan validationSize lebih besar dari 0.")
+    if baselineParameters and not comparisonRequested:
+        raise ValueError("Parameter acuan membutuhkan --compare atau perintah compare.")
+    predictionParameters(args, selectedModels(args))
+    bonusRequested = getattr(args, "logresBonus", False)
+    bonusOutput = getattr(args, "bonusOutput", MEDIA_DIR / "logistic_regression_training.mp4")
+    if bonusRequested:
+        names = selectedModels(args)
+        if names is not None and "logistic_regression" not in names:
+            raise ValueError("Bonus membutuhkan pemilihan model logistic_regression.")
+        if Path(bonusOutput).suffix.lower() != ".mp4":
+            raise ValueError("Video bonus harus menggunakan ekstensi .mp4.")
+        checkVideoWriter()
+        modelParameters = {name: dict(values) for name, values in (modelParameters or {}).items()}
+        modelParameters.setdefault("logistic_regression", {})["recordHistory"] = True
+    bayesBonusRequested = getattr(args, "naiveBayesBonus", False)
+    bayesBonusOutput = getattr(args, "naiveBayesBonusOutput", MEDIA_DIR / "naive_bayes_graph.png")
+    if bayesBonusRequested:
+        names = selectedModels(args)
+        if names is not None and "naive_bayes" not in names:
+            raise ValueError("Bonus Naive Bayes membutuhkan pemilihan model naive_bayes.")
+    dtlBonusRequested = getattr(args, "dtlBonus", False)
+    dtlBonusOutput = getattr(args, "dtlBonusOutput", MEDIA_DIR / "dtl_tree.png")
+    dtlBonusTopN = getattr(args, "dtlBonusTopN", 10)
+    if dtlBonusRequested:
+        names = selectedModels(args)
+        if names is not None and "dtl" not in names:
+            raise ValueError("Bonus DTL membutuhkan pemilihan model dtl.")
+        if dtlBonusTopN < 1:
+            raise ValueError("Jumlah node percabangan bonus DTL harus lebih besar dari 0.")
+    svmBonusRequested = getattr(args, "svmBonus", False)
+    if svmBonusRequested:
+        names = selectedModels(args)
+        if names is not None and "svm" not in names:
+            raise ValueError("Bonus SVM membutuhkan pemilihan model svm.")
+        if getattr(args, "svmBonusSample", 300) < 2:
+            raise ValueError("Jumlah sampel bonus SVM minimal 2.")
+    frame =readData(args.input, args.idColumn)
+    if args.target not in frame:
+        raise ValueError(f"Kolom target tidak ditemukan: {args.target}.")
+    target = frame[args.target].copy()
+    if target.isna().any() or not target.isin([0, 1]).all() or target.nunique() != 2:
+        raise ValueError("Kolom target harus memiliki kedua kelas 0 dan 1 tanpa nilai yang hilang.")
+    features = frame.drop(columns=[args.target, args.idColumn], errors="ignore")
+    validFeatures = None
+    validTarget = None
+    if args.validationSize:
+        try:
+            features, validFeatures, target, validTarget = trainTestSplit(
+                features, target, test_size=args.validationSize,
+                random_state=args.randomState, stratify=target,
+            )
+        except ValueError as error:
+            raise ValueError("Data tidak cukup untuk pembagian train dan validasi yang diminta.") from error
+    keep = ~features.duplicated()
+    features, target = features.loc[keep], target.loc[keep]
+    features, target, state = runPreprocessing(
+        features, target, fit=True, clean=args.cleaning, transform=args.transformation,
+        featureCount=args.features, components=args.components, oversample=args.oversample, randomState=args.randomState,
+        name="train",
+    )
+    if validFeatures is not None:
+        validFeatures, validTarget, state = runPreprocessing(
+            validFeatures, validTarget, state=state, name="validation",
+        )
+    if bonusRequested:
+        bonusIndex = resolveBonusFeature(features.columns, getattr(args, "bonusFeature", "0"))
+    models = train(
+        features, target, modelNames=selectedModels(args),
+        modelParameters=modelParameters, modelDir=args.modelDir,
+    )
+    state["modelNames"] = list(models)
+    saveModel(state, Path(args.modelDir) / "preprocessing.pkl")
+    if validFeatures is not None:
+        ids = frame.loc[validFeatures.index, args.idColumn] if args.idColumn in frame else None
+        predictions = predict(
+            validFeatures, models, outputDir=args.validationOutput, ids=ids,
+            modelParameters=predictionParameters(args, list(models)),
+            costSensitive=getattr(args, "costSensitive", False),
+            targetColumn=args.target, idColumn=args.idColumn,
+        )
+        results = evaluate(predictions, validTarget, outputDir=args.metricsDir)
+        showMetrics(results)
+        print(f"Validation metrics saved to {Path(args.metricsDir) / 'metrics.csv'}")
+        if comparisonRequested:
+            report = compare(
+                features, target, validFeatures, validTarget, predictions,
+                modelParameters={name: values for name, values in (modelParameters or {}).items() if name in models},
+                baselineParameters=baselineParameters,
+                threshold=0.5 if args.threshold is None else args.threshold,
+                costSensitive=getattr(args, "costSensitive", False),
+                outputDir=args.metricsDir,
+            )
+            showComparison(report)
+            print(f"Comparison metrics saved to {Path(args.metricsDir) / 'comparison.csv'}")
+    if bonusRequested:
+        video = visualizeBonus(models["logistic_regression"], bonusOutput, featureIndex=bonusIndex)
+        print(f"Training video saved to {video}")
+    if bayesBonusRequested:
+        graph = visualizeBayesBonus(
+            models["naive_bayes"], featureNames=features.columns,
+            outputPath=bayesBonusOutput,
+        )
+        print(f"Naive Bayes graph saved to {graph}")
+    if dtlBonusRequested:
+        from ..algorithms.dtl.bonus import visualizeBonus as visualizeTreeBonus
+
+        visualizeTreeBonus(
+            models["dtl"], featureNames=features.columns,
+            outputPath=dtlBonusOutput, topN=dtlBonusTopN,
+        )
+        print(f"DTL tree saved to {dtlBonusOutput}")
+    if svmBonusRequested:
+        from ..algorithms.svm.bonus import visualizeBonus as visualizeSvmBonus
+
+        svmParameters = (modelParameters or {}).get("svm", {})
+        image = visualizeSvmBonus(
+            features, target, getattr(args, "svmBonusOutput", MEDIA_DIR / "svm_boundaries.png"),
+            sample_size=getattr(args, "svmBonusSample", 300), random_state=args.randomState,
+            **{k: v for k, v in svmParameters.items() if k != "random_state"},
+        )
+        print(f"SVM boundary plot saved to {image}")
+    return models
+
+
+def resolveBonusFeature(columns, selector):
+    names = list(columns)
+    if selector in names:
+        return names.index(selector)
+    try:
+        index = int(selector)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Kolom bonus harus berupa nama atau indeks fitur setelah preprocessing.") from error
+    if not 0 <= index < len(names):
+        raise ValueError("Indeks fitur bonus berada di luar kolom setelah preprocessing.")
+    return index
+
+
+def prepareInference(args, frame=None):
+    if args.target == args.idColumn:
+        raise ValueError("Nama kolom target dan identitas harus berbeda.")
+    if frame is None:
+        frame = readData(args.input, args.idColumn)
+    features = frame.drop(columns=[args.target, args.idColumn], errors="ignore")
+    names = selectedModels(args)
+    if not args.prepared:
+        state = loadModel(Path(args.modelDir) / "preprocessing.pkl")
+        features, _, state = runPreprocessing(
+            features, state=state, name="evaluation" if args.command == "evaluate" else "test",
+        )
+        trainedNames = state.get("modelNames", [])
+        if not trainedNames:
+            raise ValueError("State preprocessing tidak memiliki daftar model terlatih.")
+        if names is not None and any(name not in trainedNames for name in names):
+            raise ValueError("Model yang dipilih tidak dilatih dengan state preprocessing tersimpan.")
+        if names is None:
+            names = trainedNames
+    return frame, features, names
+
+
+def predictionParameters(args, names):
+    if args.threshold is None:
+        return None
+    if names is not None and "logistic_regression" not in names:
+        raise ValueError("threshold hanya dapat digunakan saat logistic_regression dipilih.")
+    return {"logistic_regression": {"threshold": args.threshold}}
+
+
+def runPredict(args):
+    frame, features, names = prepareInference(args)
+    ids = frame[args.idColumn].copy() if args.idColumn in frame else None
+    template = None
+    if args.template is not None:
+        if ids is None:
+            raise ValueError("Data prediksi harus memiliki kolom identitas untuk dicocokkan dengan templat.")
+        template = readData(args.template, args.idColumn)
+    return predict(
+        features, modelNames=names, modelParameters=predictionParameters(args, names), modelDir=args.modelDir,
+        outputDir=args.outputDir, ids=ids, template=template,
+        costSensitive=getattr(args, "costSensitive", False),
+        targetColumn=args.target, idColumn=args.idColumn,
+    )
+
+
+def runEvaluate(args):
+    frame = readData(args.input, args.idColumn)
+    if args.target not in frame:
+        raise ValueError(f"Kolom target tidak ditemukan untuk evaluasi: {args.target}.")
+    target = frame[args.target].copy()
+    if target.isna().any() or not target.isin([0, 1]).all():
+        raise ValueError("Label evaluasi hanya boleh berisi 0 dan 1 tanpa nilai yang hilang.")
+    frame, features, names = prepareInference(args, frame)
+    ids = frame[args.idColumn].copy() if args.idColumn in frame else None
+    predictions = predict(
+        features, modelNames=names, modelParameters=predictionParameters(args, names),
+        modelDir=args.modelDir, outputDir=args.outputDir, ids=ids,
+        costSensitive=getattr(args, "costSensitive", False),
+        targetColumn=args.target, idColumn=args.idColumn,
+    )
+    return evaluate(predictions, target, outputDir=args.metricsDir)
+
+
+def showMetrics(results):
+    frame = pd.DataFrame.from_dict(results, orient="index").rename_axis("model").reset_index()
+    print(frame.to_string(index=False, float_format=lambda value: f"{value:.4f}"))
+
+
+def showComparison(report):
+    print(report.to_string(index=False, float_format=lambda value: f"{value:.4f}", na_rep="tidak terdefinisi"))

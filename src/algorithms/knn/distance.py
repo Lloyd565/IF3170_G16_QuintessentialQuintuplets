@@ -1,6 +1,14 @@
-"""Placeholder for distance calculations used by KNN."""
+import math
 
 
-def compute_distance(*args, **kwargs):
-    """Compute a distance using the metric chosen by the KNN owner."""
-    raise NotImplementedError
+def compute_distance(a, b):
+    """Compute the Euclidean distance between two feature rows."""
+    if len(a) != len(b):
+        raise ValueError("Jumlah fitur kedua baris harus sama.")
+
+    total = 0
+    for i in range(len(a)):
+        selisih = a[i] - b[i]
+        total += selisih * selisih
+    return math.sqrt(total)
+

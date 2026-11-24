@@ -1,5 +1,5 @@
-"""Public placeholder entry point for Decision Tree Learning."""
+"""Public entry points for entropy-based DTL."""
 
-from .model import dtl
+from .model import DTL, DecisionTreeClassifier, dtl
 
-__all__ = ["dtl"]
+__all__ = ["DTL", "DecisionTreeClassifier", "dtl"]

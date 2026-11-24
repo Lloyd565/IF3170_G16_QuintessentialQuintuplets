@@ -1,6 +1,3 @@
-"""Placeholder for optional Logistic Regression visualizations and bonus work."""
+from .visualization import visualizeBonus
 
-
-def visualize_bonus(*args, **kwargs):
-    """Create an optional Logistic Regression visualization to be defined later."""
-    raise NotImplementedError
+__all__ = ["visualizeBonus"]
