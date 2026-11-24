@@ -1,6 +1,7 @@
-"""Placeholder for optional SVM visualizations and other bonus work."""
+def visualizeBonus(features, target, outputPath, **svmParameters):
+    from .boundary import plot_boundaries
+
+    return plot_boundaries(features, target, outputPath, **svmParameters)
 
 
-def visualize_bonus(*args, **kwargs):
-    """Create an optional SVM visualization whose scope will be defined later."""
-    raise NotImplementedError
+__all__ = ["visualizeBonus"]

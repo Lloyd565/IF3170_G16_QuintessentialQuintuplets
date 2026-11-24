@@ -82,7 +82,14 @@ def runTrain(args, modelParameters):
             raise ValueError("Bonus DTL membutuhkan pemilihan model dtl.")
         if dtlBonusTopN < 1:
             raise ValueError("Jumlah node percabangan bonus DTL harus lebih besar dari 0.")
-    frame = readData(args.input, args.idColumn)
+    svmBonusRequested = getattr(args, "svmBonus", False)
+    if svmBonusRequested:
+        names = selectedModels(args)
+        if names is not None and "svm" not in names:
+            raise ValueError("Bonus SVM membutuhkan pemilihan model svm.")
+        if getattr(args, "svmBonusSample", 300) < 2:
+            raise ValueError("Jumlah sampel bonus SVM minimal 2.")
+    frame =readData(args.input, args.idColumn)
     if args.target not in frame:
         raise ValueError(f"Kolom target tidak ditemukan: {args.target}.")
     target = frame[args.target].copy()
@@ -157,6 +164,16 @@ def runTrain(args, modelParameters):
             outputPath=dtlBonusOutput, topN=dtlBonusTopN,
         )
         print(f"DTL tree saved to {dtlBonusOutput}")
+    if svmBonusRequested:
+        from ..algorithms.svm.bonus import visualizeBonus as visualizeSvmBonus
+
+        svmParameters = (modelParameters or {}).get("svm", {})
+        image = visualizeSvmBonus(
+            features, target, getattr(args, "svmBonusOutput", MEDIA_DIR / "svm_boundaries.png"),
+            sample_size=getattr(args, "svmBonusSample", 300), random_state=args.randomState,
+            **{k: v for k, v in svmParameters.items() if k != "random_state"},
+        )
+        print(f"SVM boundary plot saved to {image}")
     return models
 
 
