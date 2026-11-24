@@ -3,7 +3,7 @@ import numpy as np
 from ..model import NaiveBayes
 from ....evaluation import evaluateMetrics
 
-
+# Sumber  : https://arxiv.org/pdf/1302.6828v1
 def split_data(X, y, seed):
     rng = np.random.default_rng(seed)
     train_rows = []
